@@ -6,6 +6,7 @@ import {
   CheckCheck,
   Clipboard,
   Clock3,
+  MessageSquare,
   Plus,
   Search,
   X,
@@ -43,6 +44,7 @@ import {
 } from "@/lib/counseling-plans";
 import {
   fetchLatestParentMessages,
+  recordParentMessage,
   type LatestParentMessage,
 } from "@/lib/parent-messages";
 import { localDate } from "@/data";
@@ -54,6 +56,7 @@ function StudentCard({
   note,
   tone = "blue",
   onNavigate,
+  detailPath,
   onRemove,
   disabled = false,
 }: {
@@ -62,6 +65,7 @@ function StudentCard({
   note?: string;
   tone?: "orange" | "blue";
   onNavigate: (path: string) => void;
+  detailPath?: string;
   onRemove?: () => void;
   disabled?: boolean;
 }) {
@@ -70,7 +74,9 @@ function StudentCard({
       <button
         type="button"
         aria-label={`${student.seat_number} ${student.name} 상담 상세 보기`}
-        onClick={() => onNavigate(`/counseling/students/${student.id}`)}
+        onClick={() =>
+          onNavigate(detailPath ?? `/counseling/students/${student.id}`)
+        }
         className={`w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#426083] ${onRemove ? "pr-12" : ""} ${tone === "orange" ? "bg-[#fff0df] text-[#71370f] hover:bg-[#fbe0c2]" : "bg-[#edf2f8] text-[#17283f] hover:bg-[#dce6f2]"}`}
       >
         <span className="flex items-center gap-3 min-h-8">
@@ -164,6 +170,7 @@ export function Dashboard({
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [copying, setCopying] = useState(false);
+  const [markingMessages, setMarkingMessages] = useState(false);
   const [saveError, setSaveError] = useState("");
   const lock = useRef(false);
   useEffect(() => {
@@ -268,6 +275,10 @@ export function Dashboard({
             )
           : 0) || seatOrder(a, b),
     );
+  const todayJournalByStudent = new Map<string, Journal>();
+  for (const journal of todayJournals) {
+    todayJournalByStudent.set(journal.student_id, journal);
+  }
   const messageDates = new Map(
     parentMessages.map((row) => [row.student_id, row.last_sent_date]),
   );
@@ -277,6 +288,37 @@ export function Dashboard({
   const messageProgress = completed.length
     ? Math.round((completedMessageCount / completed.length) * 100)
     : 0;
+  async function markAllTodayMessages() {
+    if (
+      markingMessages ||
+      !completed.length ||
+      completedMessageCount === completed.length
+    )
+      return;
+    const unmarked = completed.filter(
+      (student) => messageDates.get(student.id) !== today,
+    );
+    setMarkingMessages(true);
+    try {
+      await Promise.all(
+        unmarked.map((student) => recordParentMessage(student.id, today)),
+      );
+      setParentMessages((previous) => [
+        ...previous.filter(
+          (row) => !unmarked.some((student) => student.id === row.student_id),
+        ),
+        ...unmarked.map((student) => ({
+          student_id: student.id,
+          last_sent_date: today,
+        })),
+      ]);
+      toast.success("오늘 상담한 학생의 문자 전송을 모두 체크했습니다.");
+    } catch {
+      toast.error("문자 전송 체크를 저장하지 못했습니다.");
+    } finally {
+      setMarkingMessages(false);
+    }
+  }
   async function copyTodayJournals() {
     if (copying) return;
     setCopying(true);
@@ -588,6 +630,11 @@ export function Dashboard({
                 key={student.id}
                 student={student}
                 onNavigate={onNavigate}
+                detailPath={
+                  todayJournalByStudent.has(student.id)
+                    ? `/counseling/students/${student.id}/journals/${todayJournalByStudent.get(student.id)!.id}`
+                    : undefined
+                }
               />
             ))}
             {!completed.length && (
@@ -624,24 +671,50 @@ export function Dashboard({
                   />
                 </div>
               </div>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label="오늘 상담일지 복사"
-                      disabled={copying || !completed.length}
-                      onClick={() => void copyTodayJournals()}
-                      className="size-11 border-[#c9d8e8] bg-white text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
-                    >
-                      <Clipboard size={20} />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>오늘의 상담 일지 복사</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
+              <div className="flex items-center gap-1">
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="오늘 상담한 학생 문자 전송 모두 체크"
+                        disabled={
+                          markingMessages ||
+                          !completed.length ||
+                          completedMessageCount === completed.length
+                        }
+                        onClick={() => void markAllTodayMessages()}
+                        className="size-11 text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                      >
+                        <MessageSquare size={20} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>
+                      오늘 상담한 학생 문자 전송 모두 체크
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        aria-label="오늘 상담일지 복사"
+                        disabled={copying || !completed.length}
+                        onClick={() => void copyTodayJournals()}
+                        className="size-11 text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                      >
+                        <Clipboard size={20} />
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent>오늘의 상담 일지 복사</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
             </div>
           </div>
         </section>
