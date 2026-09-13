@@ -134,7 +134,11 @@ export function StudentManagement({ building }: { building: string }) {
               <h2 className="font-bold">
                 학생 리스트{" "}
                 <span className="text-sm font-normal text-muted-foreground">
-                  {loading ? <Skeleton className="inline-block h-4 w-8 align-middle" /> : `${filtered.length}명`}
+                  {loading ? (
+                    <Skeleton className="inline-block h-4 w-8 align-middle" />
+                  ) : (
+                    `${filtered.length}명`
+                  )}
                 </span>
               </h2>
               <p className="subtext mt-1">
@@ -166,7 +170,18 @@ export function StudentManagement({ building }: { building: string }) {
           </div>
         </div>
         {loading ? (
-          <TableSkeleton label="학생 리스트" columns={["좌석번호", "이름", "구분", "전화번호"]} />
+          <TableSkeleton
+            label="학생 리스트"
+            columns={[
+              "좌석번호",
+              "이름",
+              "구분",
+              "학교",
+              "선택과목",
+              "특이사항",
+              "전화번호",
+            ]}
+          />
         ) : loadError ? (
           <div role="alert" className="p-5">
             <p>{loadError}</p>
@@ -179,13 +194,16 @@ export function StudentManagement({ building }: { building: string }) {
             </Button>
           </div>
         ) : (
-          <div className="table-wrap">
+          <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
             <table>
               <thead>
                 <tr>
                   <th>좌석번호</th>
                   <th>이름</th>
                   <th>구분</th>
+                  <th>학교</th>
+                  <th>선택과목</th>
+                  <th>특이사항</th>
                   <th>전화번호</th>
                 </tr>
               </thead>
@@ -210,6 +228,34 @@ export function StudentManagement({ building }: { building: string }) {
                       </button>
                     </td>
                     <td>{student.student_status || "-"}</td>
+                    <td>{student.school || "-"}</td>
+                    <td className="min-w-48">
+                      {student.korean_subject ||
+                      student.math_subject ||
+                      student.inquiry_subject_1 ||
+                      student.inquiry_subject_2 ? (
+                        <div className="text-xs space-y-1">
+                          <p>
+                            국어: {student.korean_subject || "-"} · 수학:{" "}
+                            {student.math_subject || "-"}
+                          </p>
+                          <p>
+                            탐구 1: {student.inquiry_subject_1 || "-"} · 탐구 2:{" "}
+                            {student.inquiry_subject_2 || "-"}
+                          </p>
+                        </div>
+                      ) : (
+                        "-"
+                      )}
+                    </td>
+                    <td>
+                      <p
+                        className="max-w-60 line-clamp-2 whitespace-pre-wrap break-words"
+                        title={student.special_notes || undefined}
+                      >
+                        {student.special_notes || "-"}
+                      </p>
+                    </td>
                     <td>{student.phone || "-"}</td>
                   </tr>
                 ))}
@@ -265,7 +311,23 @@ export function StudentManagement({ building }: { building: string }) {
                   .trim()
                   .toUpperCase(),
                 phone: String(data.get("phone")).trim() || null,
+                school: String(data.get("school") ?? "").trim() || null,
+                korean_subject:
+                  String(data.get("korean_subject") ?? "").trim() || null,
+                math_subject:
+                  String(data.get("math_subject") ?? "").trim() || null,
+                inquiry_subject_1:
+                  String(data.get("inquiry_subject_1") ?? "").trim() || null,
+                inquiry_subject_2:
+                  String(data.get("inquiry_subject_2") ?? "").trim() || null,
+                special_notes:
+                  String(data.get("special_notes") ?? "").trim() || null,
                 counseling_cycle_weeks: Number(data.get("cycle")),
+                counseling_requested:
+                  data.get("counseling_requested") === "yes",
+                ...(selected?.source_sheet
+                  ? { source_sheet: selected.source_sheet }
+                  : {}),
               });
             }}
           >
@@ -319,9 +381,9 @@ export function StudentManagement({ building }: { building: string }) {
                 <input
                   name="seat_number"
                   required
-                  pattern="[A-Za-z]+[0-9]+"
+                  pattern="(?:[A-Za-z]+[0-9]+|502-[0-9]+)"
                   maxLength={20}
-                  placeholder="M13, W01"
+                  placeholder="M13, W01, 502-1"
                   defaultValue={selected?.seat_number}
                 />
               </label>
@@ -339,6 +401,9 @@ export function StudentManagement({ building }: { building: string }) {
                     <SelectItem value="unset">-</SelectItem>
                     <SelectItem value="재학생">재학생</SelectItem>
                     <SelectItem value="재수생">재수생</SelectItem>
+                    <SelectItem value="N수생">N수생</SelectItem>
+                    <SelectItem value="자퇴생">자퇴생</SelectItem>
+                    <SelectItem value="공시생">공시생</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -376,6 +441,86 @@ export function StudentManagement({ building }: { building: string }) {
                     ))}
                   </SelectContent>
                 </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="student-requested">상담 희망 여부</label>
+                <Select
+                  name="counseling_requested"
+                  defaultValue={
+                    selected?.counseling_requested === false ||
+                    selected?.counseling_cycle_weeks === 0
+                      ? "no"
+                      : "yes"
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger
+                    id="student-requested"
+                    aria-label="상담 희망 여부"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">희망</SelectItem>
+                    <SelectItem value="no">미희망</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="field col-span-2">
+                학교
+                <input
+                  name="school"
+                  maxLength={100}
+                  placeholder="예: 고양외고(졸)"
+                  defaultValue={selected?.school ?? ""}
+                />
+              </label>
+              <label className="field">
+                국어 선택과목
+                <input
+                  name="korean_subject"
+                  maxLength={100}
+                  placeholder="예: 언어와 매체"
+                  defaultValue={selected?.korean_subject ?? ""}
+                />
+              </label>
+              <label className="field">
+                수학 선택과목
+                <input
+                  name="math_subject"
+                  maxLength={100}
+                  placeholder="예: 확률과 통계"
+                  defaultValue={selected?.math_subject ?? ""}
+                />
+              </label>
+              <label className="field">
+                탐구 1
+                <input
+                  name="inquiry_subject_1"
+                  maxLength={100}
+                  placeholder="예: 생활과 윤리"
+                  defaultValue={selected?.inquiry_subject_1 ?? ""}
+                />
+              </label>
+              <label className="field">
+                탐구 2
+                <input
+                  name="inquiry_subject_2"
+                  maxLength={100}
+                  placeholder="예: 윤리와 사상"
+                  defaultValue={selected?.inquiry_subject_2 ?? ""}
+                />
+              </label>
+              <div className="field col-span-2">
+                <label htmlFor="student-special-notes">특이사항</label>
+                <textarea
+                  id="student-special-notes"
+                  name="special_notes"
+                  rows={4}
+                  maxLength={5000}
+                  placeholder="학생 지도 시 참고할 내용을 입력해 주세요."
+                  defaultValue={selected?.special_notes ?? ""}
+                />
               </div>
             </fieldset>
             {error && (

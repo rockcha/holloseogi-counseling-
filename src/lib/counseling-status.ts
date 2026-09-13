@@ -1,15 +1,21 @@
 import type { Student } from "./students";
 
 export function counselingStatus(
-  student: Pick<Student, "counseling_cycle_weeks">,
+  student: Pick<Student, "counseling_cycle_weeks" | "counseling_requested">,
   latestDate: string | undefined,
   today: string,
 ) {
-  if (student.counseling_cycle_weeks === 0)
+  if (
+    student.counseling_requested === false ||
+    student.counseling_cycle_weeks === 0
+  )
     return {
       label: "상담 필요 없음",
       needed: false,
-      detail: "정기 상담 대상 아님",
+      detail:
+        student.counseling_requested === false
+          ? "상담 미희망"
+          : "정기 상담 대상 아님",
       tone: "bg-[#f1f3f6] text-[#748399]",
     };
   if (!latestDate)
@@ -28,7 +34,7 @@ export function counselingStatus(
     ? {
         label: "상담 필요",
         needed: true,
-        detail: `상담주기 ${overdueDays}일 경과 · 최근 ${latestDate.replaceAll("-", ".")}`,
+        detail: "",
         tone: "bg-[#eaf0f7] text-[#426083]",
       }
     : {

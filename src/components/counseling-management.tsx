@@ -85,6 +85,7 @@ export function CounselingManagement({
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
   const [query, setQuery] = useState("");
+  const [seatFilter, setSeatFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const lock = useRef(false);
   const [saveError, setSaveError] = useState("");
@@ -153,6 +154,10 @@ export function CounselingManagement({
     .filter(
       (row) =>
         (building === "전체" || String(row.building) === building) &&
+        (seatFilter === "all" ||
+          (seatFilter === "502" && row.seat_number.startsWith("502-")) ||
+          (seatFilter === "W" && row.seat_number.startsWith("W")) ||
+          (seatFilter === "M" && row.seat_number.startsWith("M"))) &&
         row.name.includes(query.trim()),
     )
     .sort(
@@ -283,7 +288,13 @@ export function CounselingManagement({
       setSaving(false);
     }
   }
-  if (loading) return <CounselingSkeleton detail={Boolean(studentId)} journal={Boolean(writing || journalId)} />;
+  if (loading)
+    return (
+      <CounselingSkeleton
+        detail={Boolean(studentId)}
+        journal={Boolean(writing || journalId)}
+      />
+    );
   if (loadError)
     return (
       <section className="panel p-7">
@@ -325,18 +336,31 @@ export function CounselingManagement({
           </p>
         )}
         <div className="flex flex-wrap items-center justify-between gap-3 px-5 sm:px-6 pb-5">
-          <div className="relative">
-            <Search
-              size={15}
-              className="absolute left-3 top-2.5 text-muted-foreground"
-            />
-            <Input
-              aria-label="상담 학생 이름 검색"
-              placeholder="학생 이름 검색"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              className="w-60 pl-9"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search
+                size={15}
+                className="absolute left-3 top-2.5 text-muted-foreground"
+              />
+              <Input
+                aria-label="상담 학생 이름 검색"
+                placeholder="학생 이름 검색"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                className="w-60 pl-9"
+              />
+            </div>
+            <select
+              aria-label="좌석 필터"
+              value={seatFilter}
+              onChange={(e) => setSeatFilter(e.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">전체 좌석</option>
+              <option value="502">502호</option>
+              <option value="W">W</option>
+              <option value="M">M</option>
+            </select>
           </div>
           <div
             className="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
@@ -358,7 +382,7 @@ export function CounselingManagement({
             </span>
           </div>
         </div>
-        <div className="table-wrap">
+        <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
           <table>
             <thead>
               <tr>
@@ -688,7 +712,7 @@ export function CounselingManagement({
         </div>
       </section>
       <Dialog open={studentDetailsOpen} onOpenChange={setStudentDetailsOpen}>
-        <DialogContent>
+        <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>학생 상세정보</DialogTitle>
             <DialogDescription>
@@ -702,7 +726,20 @@ export function CounselingManagement({
               ["관", `${student!.building}관`],
               ["성별", student!.gender ?? "미등록"],
               ["학적", student!.student_status ?? "미등록"],
+              ["학교", student!.school || "미등록"],
+              ["국어 선택과목", student!.korean_subject || "미등록"],
+              ["수학 선택과목", student!.math_subject || "미등록"],
+              ["탐구 1", student!.inquiry_subject_1 || "미등록"],
+              ["탐구 2", student!.inquiry_subject_2 || "미등록"],
+              ["특이사항", student!.special_notes || "미등록"],
               ["연락처", student!.phone || "미등록"],
+              [
+                "상담 희망 여부",
+                student!.counseling_requested === false ||
+                student!.counseling_cycle_weeks === 0
+                  ? "미희망"
+                  : "희망",
+              ],
               [
                 "상담주기",
                 student!.counseling_cycle_weeks === 0
@@ -712,7 +749,9 @@ export function CounselingManagement({
             ].map(([label, value]) => (
               <div key={label} className="contents">
                 <dt className="text-muted-foreground">{label}</dt>
-                <dd className="min-w-0 break-words font-medium">{value}</dd>
+                <dd className="min-w-0 whitespace-pre-wrap break-words font-medium">
+                  {value}
+                </dd>
               </div>
             ))}
           </dl>

@@ -50,6 +50,16 @@ import {
 import { localDate } from "@/data";
 import { toast } from "sonner";
 
+async function dashboardQuery<T>(label: string, query: Promise<T>): Promise<T> {
+  try {
+    return await query;
+  } catch (cause) {
+    const detail = cause && typeof cause === "object" && "message" in cause
+      ? String(cause.message) : "조회 실패";
+    throw new Error(`${label}: ${detail}`);
+  }
+}
+
 function StudentCard({
   student,
   detail,
@@ -161,7 +171,7 @@ export function Dashboard({
     [],
   );
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
   const [today, setToday] = useState(localDate());
   const [neededSort, setNeededSort] = useState("seat");
@@ -183,12 +193,12 @@ export function Dashboard({
         const currentDay = localDate();
         const [rows, summary, personalSummary, upcoming, messages, journals] =
           await Promise.all([
-            fetchStudents(),
-            fetchLatestCounsels(),
-            fetchLatestCounsels(true),
-            fetchPlans(member?.id),
-            fetchLatestParentMessages(true),
-            fetchMyTodayJournals(currentDay, member?.id),
+            dashboardQuery("학생 정보", fetchStudents()),
+            dashboardQuery("전체 상담 요약", fetchLatestCounsels()),
+            dashboardQuery("내 상담 요약", fetchLatestCounsels(true)),
+            dashboardQuery("상담 예정", fetchPlans(member?.id)),
+            dashboardQuery("내 부모님 문자 전송 기록", fetchLatestParentMessages(true)),
+            dashboardQuery("오늘 상담일지", fetchMyTodayJournals(currentDay, member?.id)),
           ]);
         if (active) {
           setStudents(rows);
@@ -198,10 +208,10 @@ export function Dashboard({
           setPlans(upcoming);
           setParentMessages(messages);
           setToday(currentDay);
-          setError(false);
+          setError("");
         }
-      } catch {
-        if (active) setError(true);
+      } catch (cause) {
+        if (active) setError(cause instanceof Error ? cause.message : "조회 실패");
       } finally {
         fetching = false;
         if (active) setLoading(false);
@@ -474,9 +484,9 @@ export function Dashboard({
     return (
       <section className="panel p-7">
         <p role="alert">
-          대시보드를 불러오지 못했습니다. 연결과 상담 예정 테이블 설정을 확인해
-          주세요.
+          대시보드를 불러오지 못했습니다. 아래 조회 오류를 확인해 주세요.
         </p>
+        <p className="mt-2 text-sm break-words text-muted-foreground">{error}</p>
         <Button
           variant="outline"
           className="mt-4"

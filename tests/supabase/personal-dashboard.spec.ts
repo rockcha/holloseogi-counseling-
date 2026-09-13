@@ -5,7 +5,10 @@ for (const teacher of ['teacher-a', 'teacher-b']) {
     const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Seoul' }).format(new Date());
     const mine = teacher === 'teacher-a' ? 'a' : 'b';
     const other = mine === 'a' ? 'b' : 'a';
-    const students = ['a', 'b', 'planned'].map((id, i) => ({ id, name: `학생${id}`, building: 1, seat_number: `W0${i + 1}`, counseling_cycle_weeks: 1 }));
+    const students = [
+      ...['a', 'b', 'planned'].map((id, i) => ({ id, name: `학생${id}`, building: 1, seat_number: `W0${i + 1}`, counseling_cycle_weeks: 1 })),
+      { id: 'legacy', name: '미배정 학생', building: null, seat_number: null, counseling_cycle_weeks: 1 },
+    ];
     let ownerFilter = '';
     await page.route('https://counsel-test.supabase.co/**', async route => {
       const url = new URL(route.request().url());

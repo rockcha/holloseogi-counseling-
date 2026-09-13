@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+
+test('학교·선택과목·특이사항 저장, 수정, 비우기 및 새로고침 유지', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: '학생 관리', exact: true }).click();
+  await page.getByRole('button', { name: '학생 추가', exact: true }).click();
+  const dialog = page.getByRole('dialog');
+  await dialog.getByLabel('이름', { exact: true }).fill('학적입력검사');
+  await dialog.getByLabel('좌석번호', { exact: true }).fill('M98');
+  const fields = { '학교': '예시고(졸)', '국어 선택과목': '언어와 매체', '수학 선택과목': '확률과 통계', '탐구 1': '생활과 윤리', '탐구 2': '윤리와 사상', '특이사항': '첫 번째 참고사항\n두 번째 참고사항' };
+  for (const [label, value] of Object.entries(fields)) await dialog.getByLabel(label, { exact: true }).fill(value);
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await expect(page.locator('tbody')).toContainText('예시고(졸)');
+  await expect(page.locator('tbody')).toContainText('윤리와 사상');
+  await page.reload();
+  await page.getByRole('button', { name: '학생 관리', exact: true }).click();
+  await page.getByRole('button', { name: '학적입력검사 학생 수정' }).click();
+  for (const [label, value] of Object.entries(fields)) await expect(dialog.getByLabel(label, { exact: true })).toHaveValue(value);
+  await dialog.getByLabel('학교', { exact: true }).fill('변경고');
+  await dialog.getByLabel('탐구 2', { exact: true }).fill('');
+  await dialog.getByLabel('특이사항', { exact: true }).fill('');
+  await dialog.getByRole('button', { name: '저장', exact: true }).click();
+  await expect(dialog).toHaveCount(0);
+  await page.reload();
+  await page.getByRole('button', { name: '학생 관리', exact: true }).click();
+  await page.getByRole('button', { name: '학적입력검사 학생 수정' }).click();
+  await expect(dialog.getByLabel('학교', { exact: true })).toHaveValue('변경고');
+  await expect(dialog.getByLabel('탐구 2', { exact: true })).toHaveValue('');
+  await expect(dialog.getByLabel('특이사항', { exact: true })).toHaveValue('');
+  await expect(dialog.getByLabel('탐구 1', { exact: true })).toHaveValue('생활과 윤리');
+});

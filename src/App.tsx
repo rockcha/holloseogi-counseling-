@@ -50,7 +50,6 @@ import { BrandLogo } from "@/components/brand-logo";
 import { supabase } from "@/lib/supabase";
 import { fetchCounsels, persistCounsel } from "@/lib/counsels";
 import { Toaster, toast } from "sonner";
-import { HeaderQuote } from "@/components/header-quote";
 import {
   relativeTime,
   type AnnouncementNotification,
@@ -66,7 +65,6 @@ const pages = [
   { name: "대시보드", icon: LayoutDashboard },
   { name: "학생 관리", icon: Users },
   { name: "상담 관리", icon: MessageSquare },
-  { name: "활동 로그", icon: ClipboardList },
 ];
 const pageHints: Record<string, string> = {
   대시보드: "학생들의 상담 현황을 체크할 수 있습니다.",
@@ -471,6 +469,21 @@ export default function App() {
             </TooltipTrigger>
             <TooltipContent side="right">{pageHints["메모장"]}</TooltipContent>
           </Tooltip>
+          <p className="nav-label nav-group-divider">CONTROL CENTER</p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button
+                className={`nav-item ${page === "활동 로그" ? "active" : ""}`}
+                onClick={() => navigate("활동 로그")}
+              >
+                <ClipboardList size={18} />
+                활동 로그
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {pageHints["활동 로그"]}
+            </TooltipContent>
+          </Tooltip>
         </TooltipProvider>
       </aside>
       <div className="workspace">
@@ -484,14 +497,15 @@ export default function App() {
               <Menu size={21} />
             </button>
             <span className="hidden sm:inline">
-              {page === "전달 내용" || page === "건의함"
-                ? "COMMUNITY"
-                : "워크스페이스"}
+              {page === "활동 로그"
+                ? "CONTROL CENTER"
+                : page === "시간표" || page === "전달 내용" || page === "건의함"
+                  ? "COMMUNITY"
+                  : "WORKSPACE"}
             </span>
             <ChevronRight size={13} />
             <span className="text-[#17283f]">{page}</span>
           </div>
-          <HeaderQuote />
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />

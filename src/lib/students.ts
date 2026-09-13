@@ -7,13 +7,27 @@ export type Student = {
   building: number;
   gender: "남" | "여" | null;
   seat_number: string;
-  student_status: "재학생" | "재수생" | null;
+  student_status: "재학생" | "재수생" | "N수생" | "자퇴생" | "공시생" | null;
   phone: string | null;
+  school?: string | null;
+  korean_subject?: string | null;
+  math_subject?: string | null;
+  inquiry_subject_1?: string | null;
+  inquiry_subject_2?: string | null;
+  special_notes?: string | null;
   counseling_cycle_weeks: number;
+  counseling_requested?: boolean;
+  source_sheet?: {
+    last_date: string | null;
+    next_date: string | null;
+    parent_sent: string | null;
+    note: string;
+    student_status: string;
+  } | null;
 };
 const key = "holoseogi-students";
 const columns =
-  "id,name,building,gender,seat_number,student_status,phone,counseling_cycle_weeks";
+  "id,name,building,gender,seat_number,student_status,phone,counseling_cycle_weeks,counseling_requested,source_sheet,school,korean_subject,math_subject,inquiry_subject_1,inquiry_subject_2,special_notes";
 export async function fetchStudents(): Promise<Student[]> {
   if (!supabase)
     return JSON.parse(localStorage.getItem(key) ?? "[]").map(
@@ -23,6 +37,7 @@ export async function fetchStudents(): Promise<Student[]> {
         },
       ) => ({
         ...row,
+        seat_number: row.seat_number ?? "",
         student_status:
           row.student_status === "현역"
             ? "재학생"
@@ -35,7 +50,7 @@ export async function fetchStudents(): Promise<Student[]> {
     .order("building")
     .order("seat_number");
   if (error) throw error;
-  return data as Student[];
+  return data.map((row) => ({ ...row, seat_number: row.seat_number ?? "" })) as Student[];
 }
 export async function saveStudent(
   student: Student,
