@@ -1,0 +1,40 @@
+import { test, expect } from '@playwright/test';
+
+test('상담내역에서 수정 페이지 이동, 새로고침, 저장과 삭제 확인', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('journal-page-seeded')) return;
+    localStorage.setItem('journal-page-seeded', '1');
+    localStorage.setItem('holoseogi-students', JSON.stringify([{ id: 'student-page', name: '테스트학생', seat_number: 'W02', building: 1, gender: null, phone: null, student_status: null, counseling_cycle_weeks: 1 }]));
+    localStorage.setItem('holoseogi-counseling-journals', JSON.stringify([{ id: 'journal-page', student_id: 'student-page', date: '2026-01-01', counselor_name: '김선생', content: '기존 상담', special_notes: '확인 사항', created_at: '2026-01-01T00:00:00Z' }]));
+  });
+  await page.goto('/counseling/students/student-page');
+  await expect(page.getByRole('columnheader')).toHaveText(['날짜', '상담자']);
+  const row = page.getByRole('row').filter({ hasText: '김선생' });
+  await row.hover();
+  await expect(row).toHaveCSS('background-color', 'rgb(234, 240, 247)');
+  await row.click();
+  await expect(page).toHaveURL(/\/journals\/journal-page$/);
+  await expect(page.getByRole('dialog')).toHaveCount(0);
+  await expect(page.getByRole('form', { name: '상담일지 수정' })).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole('textbox', { name: '내용', exact: true })).toHaveValue('기존 상담');
+  await expect(page.getByLabel('상담자', { exact: true })).toHaveValue('김선생');
+  await page.getByRole('textbox', { name: '내용', exact: true }).fill('수정한 상담');
+  await page.getByRole('button', { name: '저장하기' }).first().click();
+  await expect(page).toHaveURL(/\/students\/student-page$/);
+  await page.getByRole('link', { name: '2026.01.01' }).click();
+  await expect(page.getByRole('textbox', { name: '내용', exact: true })).toHaveValue('수정한 상담');
+  await expect(page.getByLabel('상담자', { exact: true })).toHaveValue('김선생');
+  await page.getByRole('button', { name: '삭제', exact: true }).click();
+  const alert = page.getByRole('alertdialog');
+  await expect(alert).toBeVisible();
+  await alert.getByRole('button', { name: '취소' }).click();
+  await expect(page.getByRole('form', { name: '상담일지 수정' })).toBeVisible();
+  await page.getByRole('button', { name: '삭제', exact: true }).click();
+  await alert.getByRole('button', { name: '삭제', exact: true }).click();
+  await expect(page).toHaveURL(/\/students\/student-page$/);
+  await page.reload();
+  await expect(page.getByRole('link', { name: '2026.01.01' })).toHaveCount(0);
+  await page.goto('/counseling/students/student-page/journals/journal-page');
+  await expect(page.getByRole('status').filter({ hasText: '상담일지를 찾을 수 없습니다' })).toBeVisible();
+});

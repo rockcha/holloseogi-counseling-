@@ -1,0 +1,50 @@
+import { test, expect } from '@playwright/test'
+test('외부 클릭 닫힘, 메모 이모지·드래그·저장·재조회',async({page})=>{
+  const id='11111111-1111-4111-8111-111111111111'
+  let memo={content:''}
+  let fail=false
+  await page.route('https://counsel-test.supabase.co/**',async route=>{
+    const req=route.request(),url=req.url()
+    if(url.includes('/auth/v1/token'))return route.fulfill({json:{access_token:'test-token',refresh_token:'refresh',expires_in:3600,token_type:'bearer',user:{id,email:'teacher@example.com',aud:'authenticated',role:'authenticated',app_metadata:{},user_metadata:{},created_at:new Date().toISOString()}}})
+    if(url.includes('/rest/v1/profiles'))return route.fulfill({json:{id,name:'김선생',is_teacher:true}})
+    if(url.includes('/rest/v1/personal_memos')){
+      if(req.method()==='GET')return route.fulfill({json:memo})
+      if(fail)return route.fulfill({status:403,json:{message:'Denied'}})
+      memo=req.postDataJSON();return route.fulfill({status:201,body:''})
+    }
+    return route.fulfill({json:[]})
+  })
+  await page.goto('/')
+  await page.getByRole('button',{name:'로그인',exact:true}).click()
+  await page.getByLabel('이메일',{exact:true}).fill('teacher@example.com')
+  await page.getByLabel('비밀번호',{exact:true}).fill('password123')
+  await page.getByRole('button',{name:'로그인',exact:true}).click()
+  await page.getByRole('button',{name:'김선생 선생님'}).click()
+  await expect(page.getByRole('button',{name:'프로필 설정',exact:true})).toBeVisible()
+  await page.getByRole('heading',{name:'상담 필요한 학생',exact:true}).click()
+  await expect(page.getByRole('button',{name:'프로필 설정',exact:true})).toHaveCount(0)
+  await page.getByRole('button',{name:'알림',exact:true}).click()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('button',{name:'모두 읽음'})).toHaveCount(0)
+  await page.getByRole('button',{name:'내 메모 열기'}).click()
+  await page.getByLabel('메모 내용',{exact:true}).fill('오늘 상담')
+  await page.getByRole('button',{name:'이모지 추가',exact:true}).click()
+  await page.getByRole('button',{name:'✅ 추가',exact:true}).click()
+  await expect(page.getByLabel('메모 내용',{exact:true})).toHaveValue('오늘 상담✅')
+  const before=await page.locator('#personal-memo').boundingBox()
+  const handle=await page.getByRole('button',{name:'메모 이동',exact:true}).boundingBox()
+  await page.mouse.move(handle!.x+30,handle!.y+10);await page.mouse.down();await page.mouse.move(handle!.x+180,handle!.y-50,{steps:10});await page.mouse.up()
+  const after=await page.locator('#personal-memo').boundingBox()
+  expect(after!.x).toBeGreaterThan(before!.x)
+  await page.getByRole('button',{name:'저장',exact:true}).click()
+  await expect(page.getByRole('status')).toContainText('저장되었습니다')
+  expect(memo.content).toBe('오늘 상담✅')
+  await page.reload()
+  await page.getByRole('button',{name:'내 메모 열기'}).click()
+  await expect(page.getByLabel('메모 내용',{exact:true})).toHaveValue('오늘 상담✅')
+  fail=true
+  await page.getByLabel('메모 내용',{exact:true}).fill('실패해도 유지')
+  await page.getByRole('button',{name:'저장',exact:true}).click()
+  await expect(page.getByRole('status')).toContainText('저장하지 못했습니다')
+  await expect(page.getByLabel('메모 내용',{exact:true})).toHaveValue('실패해도 유지')
+})

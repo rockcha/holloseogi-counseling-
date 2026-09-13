@@ -1,0 +1,32 @@
+import { test, expect } from '@playwright/test';
+test('문자 전송 체크 저장과 날짜 변경 및 해제', async ({ page }) => {
+  await page.addInitScript(() => {
+    if (localStorage.getItem('check-seed')) return;
+    localStorage.setItem('check-seed', '1');
+    localStorage.setItem('holoseogi-students', JSON.stringify([{ id: 's1', name: '학생', building: 1, seat_number: 'W01', counseling_cycle_weeks: 1 }]));
+  });
+  await page.goto('/counseling/students/s1');
+  await expect(page.getByRole('form', { name: '부모님 문자 전송', exact: true })).toHaveCount(0);
+  await page.getByRole('button', { name: '상담일지 작성', exact: true }).click();
+  await page.getByLabel('날짜', { exact: true }).fill('2026-01-02');
+  await page.getByRole('textbox', { name: '내용', exact: true }).fill('상담 내용');
+  await page.getByRole('checkbox', { name: '부모님 문자 전송 완료' }).check();
+  await page.getByRole('button', { name: '저장하기' }).first().click();
+  await page.getByRole('button', { name: '상담 관리', exact: true }).click();
+  const last = page.getByRole('row').filter({ hasText: '학생' }).getByRole('cell').nth(4);
+  await expect(last).toHaveText('2026.01.02');
+  await page.getByRole('link', { name: '학생', exact: true }).click();
+  await page.getByRole('link', { name: '2026.01.02' }).click();
+  await page.reload();
+  await expect(page.getByRole('checkbox', { name: '부모님 문자 전송 완료' })).toBeChecked();
+  await page.getByLabel('날짜', { exact: true }).fill('2026-01-01');
+  await page.getByRole('button', { name: '저장하기' }).first().click();
+  await page.getByRole('button', { name: '상담 관리', exact: true }).click();
+  await expect(last).toHaveText('2026.01.01');
+  await page.getByRole('link', { name: '학생', exact: true }).click();
+  await page.getByRole('link', { name: '2026.01.01' }).click();
+  await page.getByRole('checkbox', { name: '부모님 문자 전송 완료' }).uncheck();
+  await page.getByRole('button', { name: '저장하기' }).first().click();
+  await page.getByRole('button', { name: '상담 관리', exact: true }).click();
+  await expect(last).toHaveText('—');
+});
