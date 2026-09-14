@@ -76,12 +76,17 @@ export function CounselingManagement({
   );
   const [messageError, setMessageError] = useState("");
   const selectedJournal = journals.find((row) => row.id === journalId);
-  const chronological = [...journals].sort((a, b) =>
-    a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  const chronological = [...journals].sort(
+    (a, b) =>
+      a.date.localeCompare(b.date) ||
+      a.created_at.localeCompare(b.created_at) ||
+      a.id.localeCompare(b.id),
   );
-  const journalIndex = chronological.findIndex(row => row.id === journalId);
-  const previousJournal = journalIndex > 0 ? chronological[journalIndex - 1] : undefined;
-  const nextJournal = journalIndex >= 0 ? chronological[journalIndex + 1] : undefined;
+  const journalIndex = chronological.findIndex((row) => row.id === journalId);
+  const previousJournal =
+    journalIndex > 0 ? chronological[journalIndex - 1] : undefined;
+  const nextJournal =
+    journalIndex >= 0 ? chronological[journalIndex + 1] : undefined;
   function navigateJournal(journal: Journal | undefined) {
     if (!journal) return;
     setEditError("");
@@ -101,13 +106,16 @@ export function CounselingManagement({
   }, [studentId, journalId, writing, onDirtyChange]);
   function trackChanges(form: HTMLFormElement) {
     if (readOnly) return;
-    const changed = Array.from(form.elements).some(element => {
+    const changed = Array.from(form.elements).some((element) => {
       if (element instanceof HTMLInputElement) {
         return element.type === "checkbox"
           ? element.checked !== element.defaultChecked
           : element.value !== element.defaultValue;
       }
-      return element instanceof HTMLTextAreaElement && element.value !== element.defaultValue;
+      return (
+        element instanceof HTMLTextAreaElement &&
+        element.value !== element.defaultValue
+      );
     });
     onDirtyChange(changed);
   }
@@ -357,7 +365,9 @@ export function CounselingManagement({
       <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <PageHeading as="h2" emoji="💬">상담 리스트</PageHeading>
+            <PageHeading as="h2" emoji="💬">
+              상담 리스트
+            </PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
               학생들의 상담 현황을 체크할 수 있습니다.
             </p>
@@ -534,7 +544,7 @@ export function CounselingManagement({
           }
           key={selectedJournal?.id ?? student.id}
           className="panel overflow-hidden"
-          onChange={event => trackChanges(event.currentTarget)}
+          onChange={(event) => trackChanges(event.currentTarget)}
           onSubmit={(e) => {
             e.preventDefault();
             if (selectedJournal) void editJournal(e.currentTarget);
@@ -667,18 +677,40 @@ export function CounselingManagement({
             )}
             {selectedJournal ? (
               <>
-                <Button type="button" variant="outline" disabled={saving || !previousJournal} onClick={() => navigateJournal(previousJournal)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving || !previousJournal}
+                  onClick={() => navigateJournal(previousJournal)}
+                >
                   이전으로
                 </Button>
-                <Button type="button" variant="outline" disabled={saving} onClick={() => onNavigate(`/counseling/students/${student.id}`)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving}
+                  onClick={() =>
+                    onNavigate(`/counseling/students/${student.id}`)
+                  }
+                >
                   목록으로
                 </Button>
-                <Button type="button" variant="outline" disabled={saving || !nextJournal} onClick={() => navigateJournal(nextJournal)}>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={saving || !nextJournal}
+                  onClick={() => navigateJournal(nextJournal)}
+                >
                   다음으로
                 </Button>
               </>
             ) : (
-              <Button type="button" variant="outline" disabled={saving} onClick={() => onNavigate(`/counseling/students/${student.id}`)}>
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => onNavigate(`/counseling/students/${student.id}`)}
+              >
                 목록으로
               </Button>
             )}

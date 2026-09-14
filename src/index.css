@@ -549,13 +549,19 @@ tbody tr.counseling-current:hover {
   animation: auth-caret-fade 0.6s ease 1s forwards;
 }
 @keyframes auth-caret {
-  50% { opacity: 0; }
+  50% {
+    opacity: 0;
+  }
 }
 @keyframes auth-caret-fade {
-  to { opacity: 0; }
+  to {
+    opacity: 0;
+  }
 }
 @media (prefers-reduced-motion: reduce) {
-  .auth-typewriter-caret { display: none; }
+  .auth-typewriter-caret {
+    display: none;
+  }
 }
 .auth-form-panel {
   padding: 42px 44px;
