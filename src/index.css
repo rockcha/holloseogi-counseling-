@@ -710,6 +710,7 @@ select:focus-visible {
 .page-panel {
   display: flex;
   flex-direction: column;
+  height: max(480px, calc(100dvh - 140px));
 }
 .page-table-wrap {
   flex: 1;
