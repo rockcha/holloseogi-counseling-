@@ -1,7 +1,9 @@
 import { useContext, useEffect, useRef, useState } from "react";
+import { useNavigationGuard } from "@/lib/use-navigation-guard";
 import {
   Bell,
   ClipboardList,
+  ListTodo,
   Megaphone,
   BookOpen,
   CalendarDays,
@@ -45,8 +47,12 @@ import { matchesTarget, targetLabel } from "@/lib/announcements";
 import { Dashboard } from "@/components/dashboard";
 import { StudentManagement } from "@/components/student-management";
 import { FloatingMemo } from "@/components/floating-memo";
+import { PersonalTodos } from "@/components/personal-todos";
 import { WeatherDialog } from "@/components/weather-dialog";
 import { BrandLogo } from "@/components/brand-logo";
+import { SidebarGroup } from "@/components/sidebar-group";
+import { IconTooltip } from "@/components/ui/icon-tooltip";
+import { PageHeading } from "@/components/ui/page-heading";
 import { supabase } from "@/lib/supabase";
 import { fetchCounsels, persistCounsel } from "@/lib/counsels";
 import { Toaster, toast } from "sonner";
@@ -72,6 +78,7 @@ const pageHints: Record<string, string> = {
   "상담 관리": "학생들의 상담 리스트와 상담일지를 관리할 수 있습니다.",
   시간표: "준비중",
   메모장: "나만의 메모를 넓게 작성할 수 있습니다.",
+  "할 일": "나만의 할 일을 정리하고 완료한 항목을 체크합니다.",
   "활동 로그": "선생님들의 활동 기록을 확인할 수 있습니다.",
   "전달 내용": "선생님들끼리 업무 관련 중요 사항을 공유하는 곳입니다.",
   건의함: "새로운 기능 제안 혹은 버그 제보를 위한 곳입니다.",
@@ -79,6 +86,8 @@ const pageHints: Record<string, string> = {
   "이용 안내": "서비스 이용 방법과 주요 기능을 확인할 수 있습니다.",
 };
 export default function App() {
+  const [todoContainer, setTodoContainer] = useState<HTMLDivElement | null>(null);
+  const { setDirty: setJournalDirty, confirmLeave, navigateHistory, acceptPop } = useNavigationGuard();
   const [memoContainer, setMemoContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -100,6 +109,8 @@ export default function App() {
           ? "상담 관리"
           : window.location.pathname === "/timetable"
             ? "시간표"
+            : window.location.pathname === "/todos"
+              ? "할 일"
             : window.location.pathname === "/memo"
               ? "메모장"
               : "대시보드",
@@ -109,7 +120,8 @@ export default function App() {
       /^\/counseling\/students\/([^/]+)(?:\/new|\/journals\/[^/]+)?\/?$/,
     )?.[1] ?? null;
   useEffect(() => {
-    const onPop = () => {
+    const onPop = (event: PopStateEvent) => {
+      if (!acceptPop(event)) return;
       setPath(window.location.pathname);
       setPage(
         window.location.pathname.startsWith("/community/announcements")
@@ -120,6 +132,8 @@ export default function App() {
               ? "상담 관리"
               : window.location.pathname === "/timetable"
                 ? "시간표"
+                : window.location.pathname === "/todos"
+                  ? "할 일"
                 : window.location.pathname === "/memo"
                   ? "메모장"
                   : "대시보드",
@@ -127,10 +141,9 @@ export default function App() {
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
-  }, []);
+  }, [acceptPop]);
   function navigateCounseling(next: string, replace = false) {
-    if (replace) window.history.replaceState({}, "", next);
-    else window.history.pushState({}, "", next);
+    if (!navigateHistory(next, replace)) return;
     setPath(next);
     setPage("상담 관리");
     setMobile(false);
@@ -144,6 +157,7 @@ export default function App() {
     }
   });
   function changeBuilding(value: string) {
+    if (!confirmLeave()) return;
     setBuilding(value);
     try {
       localStorage.setItem("holoseogi-building", value);
@@ -260,7 +274,7 @@ export default function App() {
         ? "/community/suggestions"
         : "/community/announcements";
     const next = base + (id ? "/" + id : "");
-    window.history.pushState({}, "", next);
+    if (!navigateHistory(next)) return;
     setPath(next);
     setPage(category === "suggestion" ? "건의함" : "전달 내용");
     setNotifications(false);
@@ -352,10 +366,12 @@ export default function App() {
             ? "/counseling"
             : name === "시간표"
               ? "/timetable"
+              : name === "할 일"
+                ? "/todos"
               : name === "메모장"
                 ? "/memo"
                 : "/";
-    window.history.pushState({}, "", next);
+    if (!navigateHistory(next)) return;
     setPath(next);
     setPage(name);
     setMobile(false);
@@ -364,7 +380,7 @@ export default function App() {
   }
   return (
     <>
-      {page !== "건의함" && page !== "시간표" && page !== "메모장" && (
+      {page !== "건의함" && page !== "시간표" && page !== "메모장" && page !== "할 일" && (
         <div className="building-filter" role="group" aria-label="공통 관 선택">
           {["전체", "1", "2"].map((value) => (
             <button
@@ -400,8 +416,7 @@ export default function App() {
               <small>COUNSELING</small>
             </div>
           </a>
-          <p className="nav-label">WORKSPACE</p>
-          <nav>
+          <SidebarGroup id="workspace" title="WORKSPACE">
             {pages.map(({ name, icon: Icon }) => (
               <Tooltip key={name}>
                 <TooltipTrigger asChild>
@@ -416,8 +431,8 @@ export default function App() {
                 <TooltipContent side="right">{pageHints[name]}</TooltipContent>
               </Tooltip>
             ))}
-          </nav>
-          <p className="nav-label nav-group-divider">COMMUNITY</p>
+          </SidebarGroup>
+          <SidebarGroup id="community" title="COMMUNITY">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -456,7 +471,8 @@ export default function App() {
             </TooltipTrigger>
             <TooltipContent side="right">{pageHints["건의함"]}</TooltipContent>
           </Tooltip>
-          <p className="nav-label nav-group-divider">PERSONAL</p>
+          </SidebarGroup>
+          <SidebarGroup id="personal" title="PERSONAL">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -469,7 +485,17 @@ export default function App() {
             </TooltipTrigger>
             <TooltipContent side="right">{pageHints["메모장"]}</TooltipContent>
           </Tooltip>
-          <p className="nav-label nav-group-divider">CONTROL CENTER</p>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <button className={`nav-item ${page === "할 일" ? "active" : ""}`} onClick={() => navigate("할 일")}>
+                <ListTodo size={18} />
+                할 일
+              </button>
+            </TooltipTrigger>
+            <TooltipContent side="right">{pageHints["할 일"]}</TooltipContent>
+          </Tooltip>
+          </SidebarGroup>
+          <SidebarGroup id="control-center" title="CONTROL CENTER">
           <Tooltip>
             <TooltipTrigger asChild>
               <button
@@ -484,6 +510,7 @@ export default function App() {
               {pageHints["활동 로그"]}
             </TooltipContent>
           </Tooltip>
+          </SidebarGroup>
         </TooltipProvider>
       </aside>
       <div className="workspace">
@@ -499,6 +526,8 @@ export default function App() {
             <span className="hidden sm:inline">
               {page === "활동 로그"
                 ? "CONTROL CENTER"
+                : page === "메모장" || page === "할 일"
+                  ? "PERSONAL"
                 : page === "시간표" || page === "전달 내용" || page === "건의함"
                   ? "COMMUNITY"
                   : "WORKSPACE"}
@@ -509,7 +538,9 @@ export default function App() {
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />
+              <PersonalTodos container={todoContainer} />
               <FloatingMemo container={memoContainer} />
+              <IconTooltip label="알림">
               <button
                 className="memo-launcher"
                 aria-label="알림"
@@ -529,6 +560,7 @@ export default function App() {
                   </span>
                 )}
               </button>
+              </IconTooltip>
             </div>
             <span className="h-6 border-l" />
             <button
@@ -721,20 +753,26 @@ export default function App() {
               journalId={path.match(/\/journals\/([^/]+)\/?$/)?.[1] ?? null}
               studentId={studentId}
               onNavigate={navigateCounseling}
+              onDirtyChange={setJournalDirty}
             />
           ) : page === "메모장" ? (
             <div ref={setMemoContainer} className="memo-page-host" />
+          ) : page === "할 일" ? (
+            <div ref={setTodoContainer} />
           ) : page === "시간표" ? (
+            <section className="panel p-5 sm:p-6">
+            <PageHeading emoji="🗓️">시간표</PageHeading>
             <p className="py-24 text-center text-sm text-muted-foreground">
               준비중
             </p>
+            </section>
           ) : page === "학생 관리" ? (
             <StudentManagement building={building} />
           ) : page === "활동 로그" ? (
             <ActivityLogs key={building} building={building} />
           ) : page === "환경 설정" ? (
             <section className="panel p-7 max-w-2xl">
-              <h2 className="text-lg mb-2">내 프로필</h2>
+              <PageHeading as="h2" emoji="⚙️" className="mb-2">내 프로필</PageHeading>
               <p className="subtext mb-6">
                 가입 시 등록한 실명으로 표시됩니다. 이름 수정은 관리자에게
                 문의해 주세요.
@@ -746,7 +784,7 @@ export default function App() {
             </section>
           ) : page === "이용 안내" ? (
             <section className="panel p-7 max-w-2xl">
-              <h2 className="text-lg mb-5">상담관리 시작하기</h2>
+              <PageHeading as="h2" emoji="📖" className="mb-5">상담관리 시작하기</PageHeading>
               <div className="space-y-5 text-sm leading-7">
                 <p>1. 학생 관리에서 학생을 추가하고 상담주기를 설정하세요.</p>
                 <p>

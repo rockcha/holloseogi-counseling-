@@ -1,3 +1,4 @@
+import { PageHeading } from "./ui/page-heading";
 import { TableSkeleton, Skeleton } from "./ui/skeleton";
 import { useContext, useEffect, useRef, useState } from "react";
 import { MemberProfileContext } from "./auth-gate";
@@ -129,9 +130,9 @@ export function StudentManagement({ building }: { building: string }) {
     <>
       <section className="panel overflow-hidden">
         <div>
-          <div className="p-5 sm:p-6 flex items-center justify-between gap-3">
+          <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
             <div>
-              <h2 className="font-bold">
+              <PageHeading as="h2" emoji="🎓">
                 학생 리스트{" "}
                 <span className="text-sm font-normal text-muted-foreground">
                   {loading ? (
@@ -140,7 +141,7 @@ export function StudentManagement({ building }: { building: string }) {
                     `${filtered.length}명`
                   )}
                 </span>
-              </h2>
+              </PageHeading>
               <p className="subtext mt-1">
                 학생을 클릭하면 정보를 수정하거나 삭제할 수 있습니다.
               </p>
@@ -196,7 +197,7 @@ export function StudentManagement({ building }: { building: string }) {
         ) : (
           <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
             <table>
-              <thead>
+              <thead className="sticky top-0 z-10">
                 <tr>
                   <th>좌석번호</th>
                   <th>이름</th>

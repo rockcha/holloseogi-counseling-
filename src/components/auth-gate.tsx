@@ -179,10 +179,10 @@ export function AuthGate({ children }: { children: ReactNode }) {
           <AuthStoryCopy />
         </aside>
         <section className="auth-form-panel">
-          <h1 className="text-2xl mb-6">{signup ? "회원가입" : "로그인"}</h1>
+          <h1 className="auth-form-title">{signup ? "회원가입" : "로그인"}</h1>
           <form
             key={String(signup)}
-            className="grid gap-4"
+            className="grid gap-5"
             onSubmit={async (e) => {
               e.preventDefault();
               if (busy || !supabase) return;
@@ -295,14 +295,14 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 {message}
               </p>
             )}
-            <Button disabled={busy}>
+            <Button disabled={busy} className="auth-submit">
               {busy ? "처리 중…" : signup ? "회원가입" : "로그인"}
             </Button>
           </form>
-          <div className="mt-5 text-center text-sm text-muted-foreground">
+          <div className="auth-switch">
             {signup ? "이미 계정이 있으신가요?" : "아직 계정이 없으신가요?"}{" "}
             <button
-              className="text-primary underline underline-offset-4 ml-1"
+              className="text-primary font-semibold underline underline-offset-4 ml-1 py-2"
               disabled={busy}
               onClick={() => {
                 setSignup(!signup);

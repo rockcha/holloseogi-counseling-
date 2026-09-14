@@ -19,6 +19,7 @@ import {
   DialogTrigger,
 } from "./ui/dialog";
 import { Button } from "./ui/button";
+import { IconTooltip } from "./ui/icon-tooltip";
 import { LoadingSkeleton, Skeleton } from "./ui/skeleton";
 
 type Conditions = Record<string, number | null> & { time?: never };
@@ -62,14 +63,15 @@ async function reverseGeocode(
   signal: AbortSignal,
 ): Promise<Place> {
   const response = await fetch(
-    `https://geocoding-api.open-meteo.com/v1/reverse?latitude=${latitude}&longitude=${longitude}&language=ko&format=json`,
+    `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=ko`,
     { signal },
   );
   if (!response.ok) throw new Error("Location service unavailable");
   const data = await response.json();
-  if (!data.name || typeof data.name !== "string")
+  const name = data.city || data.locality || data.principalSubdivision;
+  if (!name || typeof name !== "string")
     throw new Error("Missing location data");
-  return { name: data.name, admin1: data.admin1 };
+  return { name, admin1: typeof data.principalSubdivision === "string" && data.principalSubdivision !== name ? data.principalSubdivision : undefined };
 }
 
 export function WeatherDialog() {
@@ -121,7 +123,7 @@ export function WeatherDialog() {
         timeout = setTimeout(() => controller.abort(), 15000);
         const results = await Promise.allSettled([
           report(
-            `https://api.open-meteo.com/v1/forecast?${params}&current=temperature_2m,apparent_temperature,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&wind_speed_unit=ms&forecast_days=1`,
+            `https://api.open-meteo.com/v1/forecast?${params}&current=temperature_2m,relative_humidity_2m,precipitation,weather_code,wind_speed_10m&wind_speed_unit=ms&forecast_days=1`,
             controller.signal,
           ),
           report(
@@ -182,25 +184,25 @@ export function WeatherDialog() {
                 : "⚫ 위험";
   return (
     <Dialog open={open} onOpenChange={setOpen}>
+      <IconTooltip label="날씨">
       <DialogTrigger asChild>
         <button
           type="button"
           className="memo-launcher"
           aria-label="현재 위치 날씨"
-          title="날씨와 미세먼지"
         >
           <CloudSun size={19} />
         </button>
       </DialogTrigger>
+      </IconTooltip>
       <DialogContent className="sm:max-w-lg max-h-[90dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>오늘의 날씨</DialogTitle>
           <DialogDescription className="flex items-center justify-center sm:justify-start gap-1.5">
             <MapPin size={13} />
-            현재 위치 ·{" "}
             {place
-              ? `${place.name}${place.admin1 ? `, ${place.admin1}` : ""}`
-              : "도시 확인 중"}
+              ? `${place.admin1 ? `${place.admin1} · ` : ""}${place.name}`
+              : loading ? "도시 확인 중…" : "도시명을 확인하지 못했습니다"}
           </DialogDescription>
         </DialogHeader>
         {loading ? (
@@ -222,20 +224,14 @@ export function WeatherDialog() {
               <>
                 <div className="flex items-center justify-between rounded-xl bg-[#edf2f8] p-6">
                   <div>
-                    <p className="text-sm text-[#62738a]">{label}</p>
-                    <p className="mt-2 text-4xl font-semibold tracking-tight text-[#17283f]">
+                    <p className="text-4xl font-semibold tracking-tight text-[#17283f]">
                       {numberText(weather.current.temperature_2m, "°")}
                     </p>
-                    <p className="mt-2 text-xs text-muted-foreground">
-                      체감{" "}
-                      {numberText(weather.current.apparent_temperature, "°C")}
-                    </p>
                   </div>
-                  <Icon
-                    size={64}
-                    strokeWidth={1.25}
-                    className="text-[#627da0]"
-                  />
+                  <div className="flex items-center gap-2.5 text-[#627da0]">
+                    <Icon size={36} strokeWidth={1.5} aria-hidden="true" />
+                    <span className="text-sm font-medium">{label}</span>
+                  </div>
                 </div>
                 <div className="grid grid-cols-3 gap-2 text-center">
                   {[
@@ -270,9 +266,6 @@ export function WeatherDialog() {
                     </div>
                   ))}
                 </div>
-                <p className="text-right text-[11px] text-muted-foreground">
-                  현지 {weather.time.replace("T", " ")} 기준
-                </p>
               </>
             ) : (
               <p role="status" className="rounded-lg bg-muted p-4 text-sm">
@@ -286,11 +279,7 @@ export function WeatherDialog() {
                   {air ? airStatus : "⚪ 조회 실패"}
                 </span>
               </div>
-              {air ? (
-                <p className="mt-3 text-xs text-muted-foreground">
-                  현재 공기 상태를 기준으로 표시했습니다.
-                </p>
-              ) : (
+              {!air && (
                 <p className="mt-3 text-xs text-muted-foreground">
                   미세먼지 정보를 불러오지 못했습니다. 다시 조회해 주세요.
                 </p>
@@ -300,8 +289,6 @@ export function WeatherDialog() {
         )}
         <div className="flex items-center justify-between gap-3 border-t pt-4">
           <p className="text-[10px] leading-5 text-muted-foreground">
-            주변 지역 예측값 · 실측과 다를 수 있습니다.
-            <br />
             <a
               href="https://open-meteo.com/"
               target="_blank"
@@ -319,6 +306,7 @@ export function WeatherDialog() {
             >
               CAMS
             </a>
+            {" · "}<a href="https://www.bigdatacloud.com/" target="_blank" rel="noreferrer" className="underline underline-offset-2">BigDataCloud</a>
           </p>
           <Button
             variant="outline"

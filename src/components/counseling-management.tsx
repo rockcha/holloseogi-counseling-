@@ -1,3 +1,4 @@
+import { PageHeading } from "./ui/page-heading";
 import { CounselingSkeleton } from "./ui/skeleton";
 import { useContext, useEffect, useRef, useState } from "react";
 import { Save, BookOpen, Eye, Plus, Search } from "lucide-react";
@@ -54,12 +55,14 @@ export function CounselingManagement({
   writing,
   journalId,
   onNavigate,
+  onDirtyChange,
 }: {
   building: string;
   studentId: string | null;
   writing: boolean;
   journalId: string | null;
   onNavigate: (path: string, replace?: boolean) => void;
+  onDirtyChange: (dirty: boolean) => void;
 }) {
   const [deleting, setDeleting] = useState<Journal | null>(null);
   const [studentDetailsOpen, setStudentDetailsOpen] = useState(false);
@@ -73,6 +76,17 @@ export function CounselingManagement({
   );
   const [messageError, setMessageError] = useState("");
   const selectedJournal = journals.find((row) => row.id === journalId);
+  const chronological = [...journals].sort((a, b) =>
+    a.date.localeCompare(b.date) || a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id),
+  );
+  const journalIndex = chronological.findIndex(row => row.id === journalId);
+  const previousJournal = journalIndex > 0 ? chronological[journalIndex - 1] : undefined;
+  const nextJournal = journalIndex >= 0 ? chronological[journalIndex + 1] : undefined;
+  function navigateJournal(journal: Journal | undefined) {
+    if (!journal) return;
+    setEditError("");
+    onNavigate(`/counseling/students/${studentId}/journals/${journal.id}`);
+  }
   const canEditJournal = (journal: Journal) =>
     !supabase ||
     Boolean(
@@ -81,6 +95,22 @@ export function CounselingManagement({
       journal.counselor_id === member.id,
     );
   const readOnly = Boolean(selectedJournal && !canEditJournal(selectedJournal));
+  useEffect(() => {
+    onDirtyChange(false);
+    return () => onDirtyChange(false);
+  }, [studentId, journalId, writing, onDirtyChange]);
+  function trackChanges(form: HTMLFormElement) {
+    if (readOnly) return;
+    const changed = Array.from(form.elements).some(element => {
+      if (element instanceof HTMLInputElement) {
+        return element.type === "checkbox"
+          ? element.checked !== element.defaultChecked
+          : element.value !== element.defaultValue;
+      }
+      return element instanceof HTMLTextAreaElement && element.value !== element.defaultValue;
+    });
+    onDirtyChange(changed);
+  }
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
@@ -213,6 +243,7 @@ export function CounselingManagement({
         },
       ]);
       toast.success("상담일지를 저장했습니다.");
+      onDirtyChange(false);
       onNavigate("/counseling/students/" + student.id, true);
     } catch {
       setSaveError(
@@ -232,6 +263,7 @@ export function CounselingManagement({
       await deleteJournal(deleting.id, counselorName);
       setDeleting(null);
       toast.success("상담일지를 삭제했습니다.");
+      onDirtyChange(false);
       onNavigate(`/counseling/students/${studentId}`, true);
       setReload((value) => value + 1);
     } catch (error) {
@@ -277,6 +309,7 @@ export function CounselingManagement({
         rows.map((item) => (item.id === row.id ? row : item)),
       );
       setReload((value) => value + 1);
+      onDirtyChange(false);
       onNavigate(`/counseling/students/${studentId}`, true);
       toast.success("상담일지를 수정했습니다.");
     } catch (error) {
@@ -324,7 +357,7 @@ export function CounselingManagement({
       <section className="panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="font-bold">상담 리스트</h2>
+            <PageHeading as="h2" emoji="💬">상담 리스트</PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
               학생들의 상담 현황을 체크할 수 있습니다.
             </p>
@@ -384,7 +417,7 @@ export function CounselingManagement({
         </div>
         <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
           <table>
-            <thead>
+            <thead className="sticky top-0 z-10">
               <tr>
                 <th>좌석번호</th>
                 <th>이름</th>
@@ -501,6 +534,7 @@ export function CounselingManagement({
           }
           key={selectedJournal?.id ?? student.id}
           className="panel overflow-hidden"
+          onChange={event => trackChanges(event.currentTarget)}
           onSubmit={(e) => {
             e.preventDefault();
             if (selectedJournal) void editJournal(e.currentTarget);
@@ -509,9 +543,9 @@ export function CounselingManagement({
         >
           <div className="border-b p-5 sm:p-7 flex flex-wrap items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-bold">
+              <PageHeading as="h2" emoji="📝">
                 {selectedJournal ? "상담일지" : "상담일지 작성"}
-              </h2>
+              </PageHeading>
               {readOnly && (
                 <p className="subtext mt-2">
                   읽기 전용 · 작성한 선생님만 수정·삭제할 수 있습니다.
@@ -631,14 +665,23 @@ export function CounselingManagement({
                 삭제
               </Button>
             )}
-            <Button
-              type="button"
-              variant="outline"
-              disabled={saving}
-              onClick={() => onNavigate(`/counseling/students/${student.id}`)}
-            >
-              목록으로
-            </Button>
+            {selectedJournal ? (
+              <>
+                <Button type="button" variant="outline" disabled={saving || !previousJournal} onClick={() => navigateJournal(previousJournal)}>
+                  이전으로
+                </Button>
+                <Button type="button" variant="outline" disabled={saving} onClick={() => onNavigate(`/counseling/students/${student.id}`)}>
+                  목록으로
+                </Button>
+                <Button type="button" variant="outline" disabled={saving || !nextJournal} onClick={() => navigateJournal(nextJournal)}>
+                  다음으로
+                </Button>
+              </>
+            ) : (
+              <Button type="button" variant="outline" disabled={saving} onClick={() => onNavigate(`/counseling/students/${student.id}`)}>
+                목록으로
+              </Button>
+            )}
             {!readOnly && (
               <Button type="submit" disabled={saving}>
                 <Save size={16} />
@@ -690,9 +733,9 @@ export function CounselingManagement({
     <>
       <section className="py-2 mb-6 flex flex-wrap gap-5 items-center">
         <div className="flex min-w-0 items-center gap-3">
-          <h2 className="text-2xl sm:text-3xl font-bold break-words">
+          <PageHeading as="h2" emoji="👤">
             {student!.seat_number} {student!.name}
-          </h2>
+          </PageHeading>
           <TooltipProvider>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -759,12 +802,12 @@ export function CounselingManagement({
       </Dialog>
       <section className="panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap gap-3 justify-between items-center">
-          <h3 className="font-bold">
+          <PageHeading as="h3" emoji="📚">
             상담내역{" "}
             <span className="ml-2 text-sm font-normal text-muted-foreground">
               {journals.length}건
             </span>
-          </h3>
+          </PageHeading>
           <Button
             onClick={() => {
               setSaveError("");

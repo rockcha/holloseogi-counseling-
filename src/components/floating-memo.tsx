@@ -1,8 +1,10 @@
+import { PageHeading } from "./ui/page-heading";
 import { useContext, useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { GripHorizontal, RotateCcw, Smile, StickyNote, X } from 'lucide-react'
+import { GripHorizontal, RotateCcw, StickyNote, X } from 'lucide-react'
 import { MemberProfileContext } from './auth-gate'
 import { Button } from './ui/button'
+import { IconTooltip } from './ui/icon-tooltip'
 import { supabase } from '@/lib/supabase'
 
 const emojis = ['😊', '👍', '⭐', '📌', '✅', '💡', '📞', '📚', '🎯', '❤️', '🌱', '✨']
@@ -17,7 +19,6 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
   const [saving, setSaving] = useState(false)
   const saveLock = useRef(false)
   const [message, setMessage] = useState('')
-  const [picker, setPicker] = useState(false)
   const [position, setPosition] = useState<Position | null>(null)
   const panel = useRef<HTMLDivElement>(null)
   const textarea = useRef<HTMLTextAreaElement>(null)
@@ -27,7 +28,7 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
   const [retry, setRetry] = useState(0)
   const positionKey = `holoseogi-memo-position-${member?.id ?? 'demo'}`
   useEffect(() => {
-    if (container) { setOpen(false); setPicker(false) }
+    if (container) { setOpen(false) }
   }, [container])
   function clamp(p: Position): Position {
     const width = panel.current?.offsetWidth ?? Math.min(520, window.innerWidth - 24)
@@ -60,17 +61,17 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
   useEffect(()=>{
     if(!open || container)return
     const resize=()=>setPosition(p=>p ? clamp(p) : null)
-    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){if(picker)setPicker(false);else{setOpen(false);launcher.current?.focus()}}}
+    const escape=(event:KeyboardEvent)=>{if(event.key==='Escape'){setOpen(false);launcher.current?.focus()}}
     const outside=(event:PointerEvent)=>{
       if(event.target instanceof Node && !panel.current?.contains(event.target) && !launcher.current?.contains(event.target)) {
-        setOpen(false);setPicker(false)
+        setOpen(false)
       }
     }
     resize()
     window.addEventListener('resize',resize);window.addEventListener('keydown',escape)
     document.addEventListener('pointerdown',outside)
     return ()=>{window.removeEventListener('resize',resize);window.removeEventListener('keydown',escape);document.removeEventListener('pointerdown',outside)}
-  },[open,picker,container])
+  },[open,container])
   const dirty=content!==saved
   useEffect(()=>{
     if(!dirty || loading || failed || saving)return
@@ -103,15 +104,18 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
     const end = textarea.current?.selectionEnd ?? selection.current.end
     const next=content.slice(0,start)+emoji+content.slice(end)
     if(next.length>5000)return
-    setContent(next);setMessage('');setPicker(false)
+    setContent(next);setMessage('')
     requestAnimationFrame(()=>{textarea.current?.focus();textarea.current?.setSelectionRange(start+emoji.length,start+emoji.length)})
   }
   return <>
-    <button ref={launcher} className="memo-launcher" title="내 메모" aria-label="내 메모 열기" aria-expanded={open} aria-controls="personal-memo" onClick={()=>{if(container)textarea.current?.focus();else setOpen(!open)}}><StickyNote size={19}/>{dirty && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#426083]"/>}</button>
+    <IconTooltip label="메모"><button ref={launcher} className="memo-launcher" aria-label="내 메모 열기" aria-expanded={open} aria-controls="personal-memo" onClick={()=>{if(container)textarea.current?.focus();else setOpen(!open)}}><StickyNote size={19}/>{dirty && <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-[#426083]"/>}</button></IconTooltip>
     {(open || container) && createPortal(<div ref={panel} id="personal-memo" role="region" aria-label="내 메모" className={container ? "panel memo-page" : "memo-panel"} style={!container && position ? {left:position.x,top:position.y,right:'auto',bottom:'auto'} : undefined}>
-      {container ? <div className="p-5 sm:p-6"><h1 className="text-lg font-bold">{"\uBA54\uBAA8\uC7A5"}</h1></div> : (<div className="memo-titlebar"><button className="memo-drag" aria-label="메모 이동" title="드래그 또는 방향키로 이동" onPointerDown={e=>{if(e.button!==0)return;const box=panel.current!.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,left:box.left,top:box.top};e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const d=drag.current;if(d)setPosition(clamp({x:d.left+e.clientX-d.x,y:d.top+e.clientY-d.y}))}} onPointerUp={e=>{if(drag.current){const box=panel.current!.getBoundingClientRect();remember({x:box.left,y:box.top});drag.current=null;e.currentTarget.releasePointerCapture(e.pointerId)}}} onPointerCancel={()=>{drag.current=null}} onKeyDown={e=>{const delta:Record<string,Position>={ArrowLeft:{x:-20,y:0},ArrowRight:{x:20,y:0},ArrowUp:{x:0,y:-20},ArrowDown:{x:0,y:20}};if(delta[e.key]){e.preventDefault();const box=panel.current!.getBoundingClientRect();const p=clamp({x:box.left+delta[e.key].x,y:box.top+delta[e.key].y});setPosition(p);remember(p)}}}><StickyNote size={17}/><span>내 메모</span><GripHorizontal size={16} className="ml-auto opacity-50"/></button><button aria-label="메모 위치 초기화" className="memo-icon" onClick={()=>{setPosition(null);try{localStorage.removeItem(positionKey)}catch{/* Optional. */}}}><RotateCcw size={14}/></button><button aria-label="메모 접기" className="memo-icon" onClick={()=>{setOpen(false);setPicker(false);launcher.current?.focus()}}><X size={17}/></button></div>)}
-      <div className={container ? "px-5 pb-3" : "px-3 py-1 border-b"}><button className="memo-emoji-button" aria-label="이모지 추가" aria-expanded={picker} disabled={loading||failed} onClick={()=>setPicker(!picker)}><Smile size={18}/></button></div>
-      {picker && <div className="memo-emojis" aria-label="이모지 선택">{emojis.map(emoji=><button key={emoji} aria-label={`${emoji} 추가`} onClick={()=>insertEmoji(emoji)}>{emoji}</button>)}</div>}
+      {container ? <div className="p-5 sm:p-6"><PageHeading emoji="📝">{"\uBA54\uBAA8\uC7A5"}</PageHeading></div> : (<div className="memo-titlebar"><button className="memo-drag" aria-label="메모 이동" title="드래그 또는 방향키로 이동" onPointerDown={e=>{if(e.button!==0)return;const box=panel.current!.getBoundingClientRect();drag.current={x:e.clientX,y:e.clientY,left:box.left,top:box.top};e.currentTarget.setPointerCapture(e.pointerId)}} onPointerMove={e=>{const d=drag.current;if(d)setPosition(clamp({x:d.left+e.clientX-d.x,y:d.top+e.clientY-d.y}))}} onPointerUp={e=>{if(drag.current){const box=panel.current!.getBoundingClientRect();remember({x:box.left,y:box.top});drag.current=null;e.currentTarget.releasePointerCapture(e.pointerId)}}} onPointerCancel={()=>{drag.current=null}} onKeyDown={e=>{const delta:Record<string,Position>={ArrowLeft:{x:-20,y:0},ArrowRight:{x:20,y:0},ArrowUp:{x:0,y:-20},ArrowDown:{x:0,y:20}};if(delta[e.key]){e.preventDefault();const box=panel.current!.getBoundingClientRect();const p=clamp({x:box.left+delta[e.key].x,y:box.top+delta[e.key].y});setPosition(p);remember(p)}}}><StickyNote size={17}/><span>내 메모</span><GripHorizontal size={16} className="ml-auto opacity-50"/></button><button aria-label="메모 위치 초기화" className="memo-icon" onClick={()=>{setPosition(null);try{localStorage.removeItem(positionKey)}catch{/* Optional. */}}}><RotateCcw size={14}/></button><button aria-label="메모 접기" className="memo-icon" onClick={()=>{setOpen(false);launcher.current?.focus()}}><X size={17}/></button></div>)}
+      <div className={container ? "px-5 pb-3" : "px-3 py-1 border-b"}>
+        <div className="memo-emojis" role="group" aria-label="??? ??">
+          {emojis.map(emoji=><button key={emoji} type="button" aria-label={`${emoji} ??`} disabled={loading||failed} onClick={()=>insertEmoji(emoji)}>{emoji}</button>)}
+        </div>
+      </div>
       <textarea ref={textarea} aria-label="메모 내용" maxLength={5000} disabled={loading||failed} value={content} onSelect={e=>{selection.current={start:e.currentTarget.selectionStart,end:e.currentTarget.selectionEnd}}} onChange={e=>{setContent(e.target.value);setMessage('')}} placeholder={loading?'메모를 불러오는 중…':'잊기 전에 적어두세요.\n오늘 할 일, 떠오른 생각, 작은 약속까지.'} className="memo-textarea"/>
       {message && <p role="status" className="px-4 pb-2 text-xs leading-5 text-muted-foreground">{message}</p>}
       {failed && <Button variant="outline" size="sm" className="mx-4 mb-2" onClick={()=>setRetry(n=>n+1)}>다시 불러오기</Button>}

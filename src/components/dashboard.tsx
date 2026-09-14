@@ -1,3 +1,4 @@
+import { PageHeading } from "./ui/page-heading";
 import { DashboardSkeleton } from "./ui/skeleton";
 import { DashboardSortControl, type DashboardSort } from "./dashboard-sort";
 import { useContext, useEffect, useRef, useState } from "react";
@@ -501,6 +502,7 @@ export function Dashboard({
     );
   return (
     <>
+      <PageHeading emoji="🏠" className="mb-4">대시보드</PageHeading>
       <div className="dashboard-columns">
         <section
           aria-label="상담 필요한 학생"

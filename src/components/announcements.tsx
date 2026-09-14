@@ -1,3 +1,4 @@
+import { PageHeading } from "./ui/page-heading";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import {
   ArrowLeft,
@@ -145,9 +146,9 @@ function AnnouncementDetail({
           <div className="flex items-center gap-2"><dt className="text-muted-foreground">작성자</dt><dd className="font-medium">{announcement.author_name}</dd></div>
           <div className="flex items-center gap-2"><dt className="text-muted-foreground">작성일</dt><dd><time dateTime={announcement.created_at}>{new Intl.DateTimeFormat("ko-KR", { timeZone: "Asia/Seoul", year: "numeric", month: "long", day: "numeric" }).format(new Date(announcement.created_at))}</time></dd></div>
         </dl>
-        <h1 className="mt-6 text-2xl font-bold leading-relaxed break-words">
+        <PageHeading emoji={announcement.category === 'suggestion' ? '💡' : '📢'} className="mt-6">
           {announcement.title}
-        </h1>
+        </PageHeading>
       </div>
       <section aria-label="본문" className="border-b p-5 sm:p-7">
         <h2 className="mb-3 text-xs font-medium text-muted-foreground">본문</h2>
@@ -324,7 +325,7 @@ export function AnnouncementBoard({
       <section className="panel announcement-board">
         <div className="announcement-toolbar">
           <div>
-            <h1 className="text-lg font-bold">{boardTitle}</h1>
+            <PageHeading emoji={isSuggestion ? '💡' : '📢'}>{boardTitle}</PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
               {isSuggestion
                 ? "새로운 기능 제안 혹은 버그 제보를 위한 곳입니다."

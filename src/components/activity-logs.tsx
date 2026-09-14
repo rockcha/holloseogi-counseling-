@@ -1,3 +1,4 @@
+import { PageHeading } from "./ui/page-heading";
 import { TableSkeleton } from "./ui/skeleton";
 import { useEffect, useState } from "react";
 import { Button } from "./ui/button";
@@ -68,7 +69,7 @@ export function ActivityLogs({ building }: { building: string }) {
     <section className="panel overflow-hidden">
       <div className="p-5 flex items-center justify-between">
         <div>
-          <h2 className="font-bold">활동 로그</h2>
+          <PageHeading as="h2" emoji="🗂️">활동 로그</PageHeading>
           <p className="mt-1 text-xs text-muted-foreground">
             선생님들의 활동 기록을 확인할 수 있습니다.
           </p>
