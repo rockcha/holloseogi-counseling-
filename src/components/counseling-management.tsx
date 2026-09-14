@@ -763,29 +763,6 @@ export function CounselingManagement({
     );
   return (
     <>
-      <section className="py-2 mb-6 flex flex-wrap gap-5 items-center">
-        <div className="flex min-w-0 items-center gap-3">
-          <PageHeading as="h2" emoji="👤">
-            {student!.seat_number} {student!.name}
-          </PageHeading>
-          <TooltipProvider>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="shrink-0"
-                  aria-label={`${student!.name} 학생 상세정보`}
-                  onClick={() => setStudentDetailsOpen(true)}
-                >
-                  <Eye size={20} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent>학생 정보보기</TooltipContent>
-            </Tooltip>
-          </TooltipProvider>
-        </div>
-      </section>
       <Dialog open={studentDetailsOpen} onOpenChange={setStudentDetailsOpen}>
         <DialogContent className="max-h-[90dvh] overflow-y-auto">
           <DialogHeader>
@@ -834,21 +811,41 @@ export function CounselingManagement({
       </Dialog>
       <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap gap-3 justify-between items-center">
-          <PageHeading as="h3" emoji="📚">
-            상담내역{" "}
-            <span className="ml-2 text-sm font-normal text-muted-foreground">
+          <div className="flex min-w-0 items-center gap-3">
+            <PageHeading as="h2" emoji="📚">
+              {student!.seat_number} {student!.name}
+            </PageHeading>
+            <TooltipProvider>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="shrink-0"
+                    aria-label={`${student!.name} 학생 상세정보`}
+                    onClick={() => setStudentDetailsOpen(true)}
+                  >
+                    <Eye size={20} />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>학생 정보보기</TooltipContent>
+              </Tooltip>
+            </TooltipProvider>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-normal text-muted-foreground">
               {journals.length}건
             </span>
-          </PageHeading>
-          <Button
-            onClick={() => {
-              setSaveError("");
-              onNavigate("/counseling/students/" + studentId + "/new");
-            }}
-          >
-            <Plus size={16} />
-            상담일지 작성
-          </Button>
+            <Button
+              onClick={() => {
+                setSaveError("");
+                onNavigate("/counseling/students/" + studentId + "/new");
+              }}
+            >
+              <Plus size={16} />
+              상담일지 작성
+            </Button>
+          </div>
         </div>
         <div
           className="table-wrap page-table-wrap overflow-y-auto overscroll-contain"

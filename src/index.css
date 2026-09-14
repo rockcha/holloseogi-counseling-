@@ -293,6 +293,24 @@ tbody tr.counseling-current:hover {
   color: #62738a;
   flex-shrink: 0;
 }
+.todo-composer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.todo-add-button {
+  flex-shrink: 0;
+  min-width: 68px;
+  min-height: 36px;
+  border-radius: 7px;
+  background: #426083;
+}
+.todo-add-button:hover {
+  background: #304b6a;
+}
+.todo-add-button:disabled {
+  background: #b8c4d2;
+}
 .field {
   display: grid;
   gap: 7px;
