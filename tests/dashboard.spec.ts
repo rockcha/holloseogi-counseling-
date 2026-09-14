@@ -53,7 +53,7 @@ test("상담 필요 목록의 좌석순, 주기별 지연순, 내부 스크롤�
   );
   expect(boxes[0]!.y).toBe(boxes[1]!.y);
   expect(boxes[1]!.y).toBe(boxes[2]!.y);
-  for (const box of boxes) expect(box!.height).toBe(560);
+  for (const box of boxes) expect(box!.height).toBe(680);
   expect(boxes[0]!.width).toBeLessThan(boxes[1]!.width);
   await section.getByRole("button", { name: "좌석순", exact: true }).click();
   await expect(list.getByRole("link").first()).toContainText("M1");

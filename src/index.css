@@ -720,7 +720,7 @@ select:focus-visible {
   align-items: start;
 }
 .dashboard-section {
-  height: 560px;
+  height: max(560px, calc(100dvh - 220px));
   display: flex;
   flex-direction: column;
   overflow: hidden;
