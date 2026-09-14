@@ -1,4 +1,5 @@
 import { AuthStoryCopy } from "./auth-story-copy";
+import { EmailSent } from "./email-sent";
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Clock3 } from "lucide-react";
@@ -20,6 +21,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [signup, setSignup] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
+  const [sentEmail, setSentEmail] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -168,6 +170,8 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </main>
     );
   }
+  if (sentEmail)
+    return <EmailSent email={sentEmail} />;
   return (
     <main className="auth-page">
       <div className="auth-layout">
@@ -213,6 +217,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                       "가입하지 못했습니다. 가입 가능 여부, 비밀번호 조건 또는 이메일 발송 제한을 확인하고 다시 시도해 주세요.",
                     );
                   else if (!data.session) {
+                    setSentEmail(email);
                     setMessage(
                       "가입 요청을 받았습니다. 이메일로 도착한 인증 링크를 확인한 뒤 로그인해 주세요. 기존 계정이 있다면 로그인해 주세요.",
                     );

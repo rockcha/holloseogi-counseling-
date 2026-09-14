@@ -107,7 +107,17 @@ VITE_SUPABASE_PUBLISHABLE_KEY=sb_publishable_여기에공개키
 
 ## 관리자 승인
 
-가입 시 `public.profiles`에 `id`(Auth 사용자 UUID), `name`(실명), `is_teacher=false`가 자동 저장됩니다. 기존 회원도 미승인 상태로 추가됩니다. 기존 계정에 실명이 없으면 `이름 확인 필요`를 관리자가 수정하세요.
+### 현재 적용 파일: 029
+
+SQL Editor에서 `migrations/202609140029_backfill_confirmed_profiles.sql`을 실행하세요. 002의 profiles 테이블이 필요하며, 028을 실행하지 않았어도 인증 시 생성 트리거를 함께 설치합니다. 이미 이메일 인증을 마쳤지만 프로필이 없는 계정은 `is_teacher=false`로 추가합니다. 기존 프로필의 이름, 승인 상태, 생성일 등은 수정하거나 삭제하지 않습니다. 미인증 계정은 추가하지 않으며, 이후 인증이 완료되면 생성합니다. 재실행해도 중복 생성하거나 기존 값을 덮어쓰지 않습니다.
+
+아래 028 설명은 이전 마이그레이션의 동작입니다. 인증된 누락 계정을 보충하려면 위 029를 적용해야 합니다.
+
+002 적용 후 SQL Editor에서 `migrations/202609140028_profile_after_email_confirmation.sql`을 실행하세요. 적용 이후에는 이메일 인증 완료(`auth.users.email_confirmed_at` 설정) 시 `public.profiles`에 `id`(Auth 사용자 UUID), `name`(실명), `is_teacher=false`가 자동 저장됩니다. 인증된 상태로 생성되는 Auth 사용자도 프로필이 생성됩니다.
+
+028은 기존 프로필을 추가·수정·삭제하지 않습니다. 기존 미인증 회원이 나중에 인증하더라도 이미 있는 프로필의 이름과 승인 상태 등은 그대로 유지합니다. 재실행해도 기존 데이터는 변경하지 않습니다. 기존 계정에 실명이 없으면 `이름 확인 필요`를 관리자가 수정하세요.
+
+Authentication의 이메일 제공자 설정에서 **Confirm Email**을 켜 두어야 메일 인증이 필요합니다. 꺼져 있으면 Supabase가 이메일을 자동 인증하므로 프로필도 바로 생성됩니다. 이 마이그레이션은 인증 설정 자체를 변경하지 않습니다.
 
 Supabase Table Editor → profiles에서 대상 회원의 `is_teacher`를 `true`로 변경하면 승인됩니다. SQL Editor에서 다음과 같이 변경할 수도 있습니다.
 
