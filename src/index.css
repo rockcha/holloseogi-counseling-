@@ -703,6 +703,10 @@ select:focus-visible {
 .main {
   padding-bottom: 100px;
 }
+.main > .panel:not(.dashboard-section),
+.main > div > .panel:not(.dashboard-section) {
+  min-height: max(480px, calc(100dvh - 140px));
+}
 @media (max-width: 500px) {
   .building-filter {
     right: max(14px, env(safe-area-inset-right));
