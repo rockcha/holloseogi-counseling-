@@ -707,6 +707,15 @@ select:focus-visible {
 .main > div > .panel:not(.dashboard-section) {
   min-height: max(480px, calc(100dvh - 140px));
 }
+.page-panel {
+  display: flex;
+  flex-direction: column;
+}
+.page-table-wrap {
+  flex: 1;
+  min-height: 420px;
+  height: auto;
+}
 @media (max-width: 500px) {
   .building-filter {
     right: max(14px, env(safe-area-inset-right));

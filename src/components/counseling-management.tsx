@@ -354,7 +354,7 @@ export function CounselingManagement({
     );
   if (!studentId)
     return (
-      <section className="panel overflow-hidden">
+      <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <PageHeading as="h2" emoji="💬">상담 리스트</PageHeading>
@@ -415,7 +415,7 @@ export function CounselingManagement({
             </span>
           </div>
         </div>
-        <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
+        <div className="table-wrap page-table-wrap overflow-y-auto overscroll-contain">
           <table>
             <thead className="sticky top-0 z-10">
               <tr>
@@ -800,7 +800,7 @@ export function CounselingManagement({
           </dl>
         </DialogContent>
       </Dialog>
-      <section className="panel overflow-hidden">
+      <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap gap-3 justify-between items-center">
           <PageHeading as="h3" emoji="📚">
             상담내역{" "}
@@ -819,7 +819,7 @@ export function CounselingManagement({
           </Button>
         </div>
         <div
-          className="table-wrap h-[420px] overflow-y-auto overscroll-contain"
+          className="table-wrap page-table-wrap overflow-y-auto overscroll-contain"
           role="region"
           aria-label="상담내역 목록"
           tabIndex={0}

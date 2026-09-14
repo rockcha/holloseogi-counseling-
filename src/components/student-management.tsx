@@ -128,7 +128,7 @@ export function StudentManagement({ building }: { building: string }) {
     );
   return (
     <>
-      <section className="panel overflow-hidden">
+      <section className="panel page-panel overflow-hidden">
         <div>
           <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
             <div>
@@ -195,7 +195,7 @@ export function StudentManagement({ building }: { building: string }) {
             </Button>
           </div>
         ) : (
-          <div className="table-wrap h-[420px] overflow-y-auto overscroll-contain">
+          <div className="table-wrap page-table-wrap overflow-y-auto overscroll-contain">
             <table>
               <thead className="sticky top-0 z-10">
                 <tr>
