@@ -1,5 +1,4 @@
 import { AuthStoryCopy } from "./auth-story-copy";
-import { EmailSent } from "./email-sent";
 import { createContext, useEffect, useState, type ReactNode } from "react";
 import type { Session } from "@supabase/supabase-js";
 import { Clock3 } from "lucide-react";
@@ -20,8 +19,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
   const [busy, setBusy] = useState(false);
   const [signup, setSignup] = useState(false);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
-  const [sentEmail, setSentEmail] = useState("");
   const [profile, setProfile] = useState<Profile | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
   const [profileError, setProfileError] = useState("");
@@ -170,8 +167,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
       </main>
     );
   }
-  if (sentEmail)
-    return <EmailSent email={sentEmail} />;
   return (
     <main className="auth-page">
       <div className="auth-layout">
@@ -195,7 +190,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
               const email = String(form.get("email")).trim();
               const password = String(form.get("password"));
               setError("");
-              setMessage("");
               if (signup && !name) {
                 setError("실명을 입력해 주세요.");
                 return;
@@ -214,14 +208,18 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   });
                   if (error)
                     setError(
-                      "가입하지 못했습니다. 가입 가능 여부, 비밀번호 조건 또는 이메일 발송 제한을 확인하고 다시 시도해 주세요.",
+                      error.code === "user_already_exists"
+                        ? "이미 가입된 이메일입니다. 로그인해 주세요."
+                        : error.code === "weak_password"
+                          ? "비밀번호가 보안 조건을 충족하지 않습니다. 다른 비밀번호를 사용해 주세요."
+                          : "가입하지 못했습니다. 잠시 후 다시 시도해 주세요. (" + (error.code || "unknown_error") + ")",
                     );
                   else if (!data.session) {
-                    setSentEmail(email);
-                    setMessage(
-                      "가입 요청을 받았습니다. 이메일로 도착한 인증 링크를 확인한 뒤 로그인해 주세요. 기존 계정이 있다면 로그인해 주세요.",
+                    setError(
+                      "가입 후 로그인을 완료하지 못했습니다. 기존 계정이라면 로그인해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.",
                     );
-                    setSignup(false);
+                  } else {
+                    setSession(data.session);
                   }
                 } else {
                   const { error } = await supabase.auth.signInWithPassword({
@@ -230,7 +228,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
                   });
                   if (error)
                     setError(
-                      "로그인하지 못했습니다. 이메일과 비밀번호, 이메일 인증 여부를 확인해 주세요.",
+                      "로그인하지 못했습니다. 이메일과 비밀번호를 확인해 주세요. 문제가 계속되면 관리자에게 문의해 주세요.",
                     );
                 }
               } catch {
@@ -295,11 +293,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
                 {error}
               </p>
             )}
-            {message && (
-              <p role="status" className="text-sm text-primary leading-6">
-                {message}
-              </p>
-            )}
             <Button disabled={busy} className="auth-submit">
               {busy ? "처리 중…" : signup ? "회원가입" : "로그인"}
             </Button>
@@ -312,7 +305,6 @@ export function AuthGate({ children }: { children: ReactNode }) {
               onClick={() => {
                 setSignup(!signup);
                 setError("");
-                setMessage("");
               }}
             >
               {signup ? "로그인" : "회원가입"}

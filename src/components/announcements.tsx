@@ -8,6 +8,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Button } from "./ui/button";
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from "./ui/alert-dialog";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +18,7 @@ import {
 } from "./ui/dialog";
 import {
   createAnnouncement,
+  deleteAnnouncement,
   matchesTarget,
   targetLabel,
   type Announcement,
@@ -81,6 +83,10 @@ function AnnouncementDetail({
   onBack: () => void;
 }) {
   const [comments, setComments] = useState<AnnouncementComment[]>([]);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
+  const canDelete = Boolean(actor.id && announcement.author_id === actor.id && announcement.category !== "suggestion");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -135,6 +141,32 @@ function AnnouncementDetail({
           <ArrowLeft size={16} />
           {announcement.category === "suggestion" ? "건의함 목록" : "전달 내용 목록"}
         </Button>
+        {canDelete && <Button variant="destructive" className="float-right" disabled={deleting || saving} onClick={() => { setDeleteError(""); setConfirmDelete(true); }}>삭제</Button>}
+        <AlertDialog open={confirmDelete} onOpenChange={(open) => { if (!deleting) setConfirmDelete(open); }}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>삭제하시겠습니까?</AlertDialogTitle>
+              <AlertDialogDescription>전달 내용과 해당 글의 댓글이 함께 삭제됩니다.</AlertDialogDescription>
+            </AlertDialogHeader>
+            {deleteError && <p role="alert" className="text-sm text-destructive">{deleteError}</p>}
+            <AlertDialogFooter>
+              <AlertDialogCancel disabled={deleting}>취소</AlertDialogCancel>
+              <AlertDialogAction disabled={deleting} onClick={async (event) => {
+                event.preventDefault();
+                if (deleting || !canDelete) return;
+                setDeleting(true);
+                setDeleteError("");
+                try {
+                  await deleteAnnouncement(announcement, actor.id);
+                  setConfirmDelete(false);
+                  onBack();
+                } catch (cause) {
+                  setDeleteError(cause instanceof Error ? cause.message : "삭제하지 못했습니다.");
+                } finally { setDeleting(false); }
+              }}>{deleting ? "삭제 중…" : "삭제"}</AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
         <dl className="flex flex-wrap items-center gap-x-6 gap-y-3 text-xs">
           {announcement.category !== "suggestion" && (
             <div className="flex items-center gap-2"><dt className="text-muted-foreground">대상</dt><dd

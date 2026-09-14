@@ -40,7 +40,8 @@ test("상담 필요 목록의 좌석순, 주기별 지연순, 내부 스크롤�
   await expect(list.getByRole("link").nth(0)).toContainText("M2");
   await expect(list.getByRole("link").nth(1)).toContainText("M1");
   await expect(list.getByRole("link").nth(2)).toContainText("M3");
-  await expect(list).not.toContainText("1관");
+  await expect(list).toContainText("1관 M1");
+  await expect(list).toContainText("2관 M2");
   expect(
     await list.evaluate(
       (element) => element.scrollHeight > element.clientHeight,

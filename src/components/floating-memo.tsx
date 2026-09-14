@@ -9,7 +9,7 @@ import { supabase } from '@/lib/supabase'
 
 const emojis = ['😊', '👍', '⭐', '📌', '✅', '💡', '📞', '📚', '🎯', '❤️', '🌱', '✨']
 type Position = { x: number; y: number }
-export function FloatingMemo({ container = null }: { container?: HTMLDivElement | null }) {
+export function FloatingMemo({ container = null, onDirtyChange }: { container?: HTMLDivElement | null; onDirtyChange?: (dirty: boolean) => void }) {
   const member = useContext(MemberProfileContext)
   const [open, setOpen] = useState(false)
   const [content, setContent] = useState('')
@@ -73,6 +73,7 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
     return ()=>{window.removeEventListener('resize',resize);window.removeEventListener('keydown',escape);document.removeEventListener('pointerdown',outside)}
   },[open,container])
   const dirty=content!==saved
+  useEffect(() => { onDirtyChange?.(dirty); return () => onDirtyChange?.(false); }, [dirty, onDirtyChange])
   useEffect(()=>{
     if(!dirty || loading || failed || saving)return
     const timer=window.setTimeout(()=>{void save()}, message ? 5000 : open || container ? 600 : 0)
@@ -116,7 +117,7 @@ export function FloatingMemo({ container = null }: { container?: HTMLDivElement 
           {emojis.map(emoji=><button key={emoji} type="button" aria-label={`${emoji} ??`} disabled={loading||failed} onClick={()=>insertEmoji(emoji)}>{emoji}</button>)}
         </div>
       </div>
-      <textarea ref={textarea} aria-label="메모 내용" maxLength={5000} disabled={loading||failed} value={content} onSelect={e=>{selection.current={start:e.currentTarget.selectionStart,end:e.currentTarget.selectionEnd}}} onChange={e=>{setContent(e.target.value);setMessage('')}} placeholder={loading?'메모를 불러오는 중…':'잊기 전에 적어두세요.\n오늘 할 일, 떠오른 생각, 작은 약속까지.'} className="memo-textarea"/>
+      <textarea spellCheck={false} autoCorrect="off" ref={textarea} aria-label="메모 내용" maxLength={5000} disabled={loading||failed} value={content} onSelect={e=>{selection.current={start:e.currentTarget.selectionStart,end:e.currentTarget.selectionEnd}}} onChange={e=>{setContent(e.target.value);setMessage('')}} placeholder={loading?'메모를 불러오는 중…':'잊기 전에 적어두세요.\n오늘 할 일, 떠오른 생각, 작은 약속까지.'} className="memo-textarea"/>
       {message && <p role="status" className="px-4 pb-2 text-xs leading-5 text-muted-foreground">{message}</p>}
       {failed && <Button variant="outline" size="sm" className="mx-4 mb-2" onClick={()=>setRetry(n=>n+1)}>다시 불러오기</Button>}
       <div className="memo-footer"><span className="text-[10px] text-muted-foreground">{content.length}/5,000 · {loading ? '불러오는 중…' : failed ? '불러오기 실패' : message ? '저장 재시도 중…' : saving || dirty ? '자동 저장 중…' : '자동 저장됨'}</span></div>

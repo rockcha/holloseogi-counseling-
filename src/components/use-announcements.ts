@@ -29,7 +29,7 @@ export function useAnnouncements(
       .channel(`announcements-${category}-${actorId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "announcements" },
+        { event: "*", schema: "public", table: "announcements" },
         refresh,
       )
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "announcement_comments" }, refresh)

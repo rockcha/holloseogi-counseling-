@@ -55,8 +55,10 @@ async function dashboardQuery<T>(label: string, query: Promise<T>): Promise<T> {
   try {
     return await query;
   } catch (cause) {
-    const detail = cause && typeof cause === "object" && "message" in cause
-      ? String(cause.message) : "조회 실패";
+    const detail =
+      cause && typeof cause === "object" && "message" in cause
+        ? String(cause.message)
+        : "조회 실패";
     throw new Error(`${label}: ${detail}`);
   }
 }
@@ -70,6 +72,7 @@ function StudentCard({
   detailPath,
   onRemove,
   disabled = false,
+  showBuilding = false,
 }: {
   student: Student;
   detail?: string;
@@ -79,12 +82,16 @@ function StudentCard({
   detailPath?: string;
   onRemove?: () => void;
   disabled?: boolean;
+  showBuilding?: boolean;
 }) {
+  const seatLabel = showBuilding
+    ? `${student.building}관 ${student.seat_number}`
+    : student.seat_number;
   return (
     <div className="relative">
       <button
         type="button"
-        aria-label={`${student.seat_number} ${student.name} 상담 상세 보기`}
+        aria-label={`${seatLabel} ${student.name} 상담 상세 보기`}
         onClick={() =>
           onNavigate(detailPath ?? `/counseling/students/${student.id}`)
         }
@@ -92,7 +99,7 @@ function StudentCard({
       >
         <span className="flex items-center gap-3 min-h-8">
           <span className="min-w-12 text-center text-xs font-bold">
-            {student.seat_number}
+            {seatLabel}
           </span>
           <span className="min-w-0 flex-1">
             <span className="text-sm font-bold">{student.name}</span>
@@ -198,8 +205,14 @@ export function Dashboard({
             dashboardQuery("전체 상담 요약", fetchLatestCounsels()),
             dashboardQuery("내 상담 요약", fetchLatestCounsels(true)),
             dashboardQuery("상담 예정", fetchPlans(member?.id)),
-            dashboardQuery("내 부모님 문자 전송 기록", fetchLatestParentMessages(true)),
-            dashboardQuery("오늘 상담일지", fetchMyTodayJournals(currentDay, member?.id)),
+            dashboardQuery(
+              "내 부모님 문자 전송 기록",
+              fetchLatestParentMessages(true),
+            ),
+            dashboardQuery(
+              "오늘 상담일지",
+              fetchMyTodayJournals(currentDay, member?.id),
+            ),
           ]);
         if (active) {
           setStudents(rows);
@@ -212,7 +225,8 @@ export function Dashboard({
           setError("");
         }
       } catch (cause) {
-        if (active) setError(cause instanceof Error ? cause.message : "조회 실패");
+        if (active)
+          setError(cause instanceof Error ? cause.message : "조회 실패");
       } finally {
         fetching = false;
         if (active) setLoading(false);
@@ -487,7 +501,9 @@ export function Dashboard({
         <p role="alert">
           대시보드를 불러오지 못했습니다. 아래 조회 오류를 확인해 주세요.
         </p>
-        <p className="mt-2 text-sm break-words text-muted-foreground">{error}</p>
+        <p className="mt-2 text-sm break-words text-muted-foreground">
+          {error}
+        </p>
         <Button
           variant="outline"
           className="mt-4"
@@ -502,7 +518,9 @@ export function Dashboard({
     );
   return (
     <>
-      <PageHeading emoji="🏠" className="mb-4">대시보드</PageHeading>
+      <PageHeading emoji="🏠" className="mb-4">
+        대시보드
+      </PageHeading>
       <div className="dashboard-columns">
         <section
           aria-label="상담 필요한 학생"
@@ -534,6 +552,7 @@ export function Dashboard({
                 key={student.id}
                 student={student}
                 tone="orange"
+                showBuilding={building === "전체"}
                 onNavigate={onNavigate}
                 detail={
                   latestDates.has(student.id)

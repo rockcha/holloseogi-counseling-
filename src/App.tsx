@@ -1,6 +1,16 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { useNavigationGuard } from "@/lib/use-navigation-guard";
 import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogCancel,
+  AlertDialogAction,
+} from "@/components/ui/alert-dialog";
+import {
   Bell,
   ClipboardList,
   ListTodo,
@@ -43,7 +53,7 @@ import { CounselingManagement } from "@/components/counseling-management";
 import { ActivityLogs } from "@/components/activity-logs";
 import { AnnouncementBoard } from "@/components/announcements";
 import { useAnnouncements } from "@/components/use-announcements";
-import { matchesTarget, targetLabel } from "@/lib/announcements";
+import { matchesTarget } from "@/lib/announcements";
 import { Dashboard } from "@/components/dashboard";
 import { StudentManagement } from "@/components/student-management";
 import { FloatingMemo } from "@/components/floating-memo";
@@ -86,8 +96,18 @@ const pageHints: Record<string, string> = {
   "이용 안내": "서비스 이용 방법과 주요 기능을 확인할 수 있습니다.",
 };
 export default function App() {
-  const [todoContainer, setTodoContainer] = useState<HTMLDivElement | null>(null);
-  const { setDirty: setJournalDirty, confirmLeave, navigateHistory, acceptPop } = useNavigationGuard();
+  const [todoContainer, setTodoContainer] = useState<HTMLDivElement | null>(
+    null,
+  );
+  const {
+    setDirty: setJournalDirty,
+    setMemoDirty,
+    confirmLeave,
+    navigateHistory,
+    acceptPop,
+    leaveOpen,
+    resolveLeave,
+  } = useNavigationGuard();
   const [memoContainer, setMemoContainer] = useState<HTMLDivElement | null>(
     null,
   );
@@ -111,17 +131,17 @@ export default function App() {
             ? "시간표"
             : window.location.pathname === "/todos"
               ? "할 일"
-            : window.location.pathname === "/memo"
-              ? "메모장"
-              : "대시보드",
+              : window.location.pathname === "/memo"
+                ? "메모장"
+                : "대시보드",
   );
   const studentId =
     path.match(
       /^\/counseling\/students\/([^/]+)(?:\/new|\/journals\/[^/]+)?\/?$/,
     )?.[1] ?? null;
   useEffect(() => {
-    const onPop = (event: PopStateEvent) => {
-      if (!acceptPop(event)) return;
+    const onPop = async (event: PopStateEvent) => {
+      if (!(await acceptPop(event))) return;
       setPath(window.location.pathname);
       setPage(
         window.location.pathname.startsWith("/community/announcements")
@@ -134,16 +154,16 @@ export default function App() {
                 ? "시간표"
                 : window.location.pathname === "/todos"
                   ? "할 일"
-                : window.location.pathname === "/memo"
-                  ? "메모장"
-                  : "대시보드",
+                  : window.location.pathname === "/memo"
+                    ? "메모장"
+                    : "대시보드",
       );
     };
     window.addEventListener("popstate", onPop);
     return () => window.removeEventListener("popstate", onPop);
   }, [acceptPop]);
-  function navigateCounseling(next: string, replace = false) {
-    if (!navigateHistory(next, replace)) return;
+  async function navigateCounseling(next: string, replace = false) {
+    if (!(await navigateHistory(next, replace))) return;
     setPath(next);
     setPage("상담 관리");
     setMobile(false);
@@ -156,8 +176,8 @@ export default function App() {
       return "전체";
     }
   });
-  function changeBuilding(value: string) {
-    if (!confirmLeave()) return;
+  async function changeBuilding(value: string) {
+    if (!(await confirmLeave())) return;
     setBuilding(value);
     try {
       localStorage.setItem("holoseogi-building", value);
@@ -265,7 +285,7 @@ export default function App() {
   function openAnnouncement(id: string | null) {
     openCommunityPost(id, "announcement");
   }
-  function openCommunityPost(
+  async function openCommunityPost(
     id: string | null,
     category: "announcement" | "suggestion",
   ) {
@@ -274,7 +294,7 @@ export default function App() {
         ? "/community/suggestions"
         : "/community/announcements";
     const next = base + (id ? "/" + id : "");
-    if (!navigateHistory(next)) return;
+    if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(category === "suggestion" ? "건의함" : "전달 내용");
     setNotifications(false);
@@ -356,7 +376,7 @@ export default function App() {
     date.setDate(date.getDate() + offset);
     setDay(localDate(date));
   }
-  function navigate(name: string) {
+  async function navigate(name: string) {
     const next =
       name === "전달 내용"
         ? "/community/announcements"
@@ -368,10 +388,10 @@ export default function App() {
               ? "/timetable"
               : name === "할 일"
                 ? "/todos"
-              : name === "메모장"
-                ? "/memo"
-                : "/";
-    if (!navigateHistory(next)) return;
+                : name === "메모장"
+                  ? "/memo"
+                  : "/";
+    if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(name);
     setMobile(false);
@@ -380,19 +400,50 @@ export default function App() {
   }
   return (
     <>
-      {page !== "건의함" && page !== "시간표" && page !== "메모장" && page !== "할 일" && (
-        <div className="building-filter" role="group" aria-label="공통 관 선택">
-          {["전체", "1", "2"].map((value) => (
-            <button
-              key={value}
-              aria-pressed={building === value}
-              onClick={() => changeBuilding(value)}
-            >
-              {value === "전체" ? value : `${value}관`}
-            </button>
-          ))}
-        </div>
-      )}
+      <AlertDialog
+        open={leaveOpen}
+        onOpenChange={(open) => {
+          if (!open) resolveLeave(false);
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>저장하지 않고 나가시겠습니까?</AlertDialogTitle>
+            <AlertDialogDescription>
+              저장하지 않은 작성 내용이 있습니다. 나가면 변경 내용이 저장되지
+              않을 수 있습니다.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => resolveLeave(false)}>
+              계속 작성
+            </AlertDialogCancel>
+            <AlertDialogAction onClick={() => resolveLeave(true)}>
+              저장하지 않고 나가기
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      {page !== "건의함" &&
+        page !== "시간표" &&
+        page !== "메모장" &&
+        page !== "할 일" && (
+          <div
+            className="building-filter"
+            role="group"
+            aria-label="공통 관 선택"
+          >
+            {["전체", "1", "2"].map((value) => (
+              <button
+                key={value}
+                aria-pressed={building === value}
+                onClick={() => changeBuilding(value)}
+              >
+                {value === "전체" ? value : `${value}관`}
+              </button>
+            ))}
+          </div>
+        )}
       {mobile && (
         <button
           aria-label="메뉴 닫기"
@@ -433,83 +484,91 @@ export default function App() {
             ))}
           </SidebarGroup>
           <SidebarGroup id="community" title="COMMUNITY">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={`nav-item ${page === "시간표" ? "active" : ""}`}
-                onClick={() => navigate("시간표")}
-              >
-                <Clock3 size={18} />
-                시간표
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{pageHints["시간표"]}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={`nav-item ${page === "전달 내용" ? "active" : ""}`}
-                onClick={() => navigate("전달 내용")}
-              >
-                <Megaphone size={18} />
-                전달 내용
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {pageHints["전달 내용"]}
-            </TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={`nav-item ${page === "건의함" ? "active" : ""}`}
-                onClick={() => navigate("건의함")}
-              >
-                <Lightbulb size={18} />
-                건의함
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{pageHints["건의함"]}</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "시간표" ? "active" : ""}`}
+                  onClick={() => navigate("시간표")}
+                >
+                  <Clock3 size={18} />
+                  시간표
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {pageHints["시간표"]}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "전달 내용" ? "active" : ""}`}
+                  onClick={() => navigate("전달 내용")}
+                >
+                  <Megaphone size={18} />
+                  전달 내용
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {pageHints["전달 내용"]}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "건의함" ? "active" : ""}`}
+                  onClick={() => navigate("건의함")}
+                >
+                  <Lightbulb size={18} />
+                  건의함
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {pageHints["건의함"]}
+              </TooltipContent>
+            </Tooltip>
           </SidebarGroup>
           <SidebarGroup id="personal" title="PERSONAL">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={`nav-item ${page === "메모장" ? "active" : ""}`}
-                onClick={() => navigate("메모장")}
-              >
-                <StickyNote size={18} />
-                메모장
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{pageHints["메모장"]}</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button className={`nav-item ${page === "할 일" ? "active" : ""}`} onClick={() => navigate("할 일")}>
-                <ListTodo size={18} />
-                할 일
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">{pageHints["할 일"]}</TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "메모장" ? "active" : ""}`}
+                  onClick={() => navigate("메모장")}
+                >
+                  <StickyNote size={18} />
+                  메모장
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {pageHints["메모장"]}
+              </TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "할 일" ? "active" : ""}`}
+                  onClick={() => navigate("할 일")}
+                >
+                  <ListTodo size={18} />할 일
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{pageHints["할 일"]}</TooltipContent>
+            </Tooltip>
           </SidebarGroup>
           <SidebarGroup id="control-center" title="CONTROL CENTER">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <button
-                className={`nav-item ${page === "활동 로그" ? "active" : ""}`}
-                onClick={() => navigate("활동 로그")}
-              >
-                <ClipboardList size={18} />
-                활동 로그
-              </button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {pageHints["활동 로그"]}
-            </TooltipContent>
-          </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "활동 로그" ? "active" : ""}`}
+                  onClick={() => navigate("활동 로그")}
+                >
+                  <ClipboardList size={18} />
+                  활동 로그
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">
+                {pageHints["활동 로그"]}
+              </TooltipContent>
+            </Tooltip>
           </SidebarGroup>
         </TooltipProvider>
       </aside>
@@ -528,38 +587,43 @@ export default function App() {
                 ? "CONTROL CENTER"
                 : page === "메모장" || page === "할 일"
                   ? "PERSONAL"
-                : page === "시간표" || page === "전달 내용" || page === "건의함"
-                  ? "COMMUNITY"
-                  : "WORKSPACE"}
+                  : page === "시간표" ||
+                      page === "전달 내용" ||
+                      page === "건의함"
+                    ? "COMMUNITY"
+                    : "WORKSPACE"}
             </span>
-            <ChevronRight size={13} />
-            <span className="text-[#17283f]">{page}</span>
+            <ChevronRight className="hidden sm:inline" size={13} />
+            <span className="hidden text-[#17283f] sm:inline">{page}</span>
           </div>
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />
               <PersonalTodos container={todoContainer} />
-              <FloatingMemo container={memoContainer} />
+              <FloatingMemo
+                container={memoContainer}
+                onDirtyChange={setMemoDirty}
+              />
               <IconTooltip label="알림">
-              <button
-                className="memo-launcher"
-                aria-label="알림"
-                aria-expanded={notifications}
-                onClick={() => {
-                  setNotifications(!notifications);
-                  setProfile(false);
-                }}
-              >
-                <Bell size={19} />
-                {unreadIds.length > 0 && (
-                  <span
-                    aria-label={`읽지 않은 알림 ${unreadIds.length}개`}
-                    className="notification-count"
-                  >
-                    {unreadIds.length > 99 ? "99+" : unreadIds.length}
-                  </span>
-                )}
-              </button>
+                <button
+                  className="memo-launcher"
+                  aria-label="알림"
+                  aria-expanded={notifications}
+                  onClick={() => {
+                    setNotifications(!notifications);
+                    setProfile(false);
+                  }}
+                >
+                  <Bell size={19} />
+                  {unreadIds.length > 0 && (
+                    <span
+                      aria-label={`읽지 않은 알림 ${unreadIds.length}개`}
+                      className="notification-count"
+                    >
+                      {unreadIds.length > 99 ? "99+" : unreadIds.length}
+                    </span>
+                  )}
+                </button>
               </IconTooltip>
             </div>
             <span className="h-6 border-l" />
@@ -622,21 +686,10 @@ export default function App() {
                         className={`notification-row ${feed.readIds.includes(row.id) ? "" : "unread"}`}
                         onClick={() => openNotification(row)}
                       >
-                        <span className="flex items-center gap-2 text-[11px] text-muted-foreground">
-                          <span
-                            className={`audience-badge audience-${row.building ?? "all"}`}
-                          >
-                            {targetLabel(row.building)}
-                          </span>
-                          {row.author_name} 선생님
-                          {row.kind === "comment"
-                            ? " · 내 글에 댓글"
-                            : " · 새 전달 내용"}
-                        </span>
-                        <span className="block mt-2 text-sm font-bold break-words">
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium">
                           {row.title}
                         </span>
-                        <span className="block mt-2 text-[10px] text-muted-foreground">
+                        <span className="shrink-0 text-xs text-muted-foreground">
                           {relativeTime(row.created_at, notificationNow)}
                         </span>
                       </button>
@@ -676,6 +729,7 @@ export default function App() {
                       className="nav-item"
                       onClick={async () => {
                         if (!supabase) return;
+                        if (!(await confirmLeave())) return;
                         setProfile(false);
                         try {
                           const { error } = await supabase.auth.signOut();
@@ -761,10 +815,10 @@ export default function App() {
             <div ref={setTodoContainer} />
           ) : page === "시간표" ? (
             <section className="panel p-5 sm:p-6">
-            <PageHeading emoji="🗓️">시간표</PageHeading>
-            <p className="py-24 text-center text-sm text-muted-foreground">
-              준비중
-            </p>
+              <PageHeading emoji="🗓️">시간표</PageHeading>
+              <p className="py-24 text-center text-sm text-muted-foreground">
+                준비중
+              </p>
             </section>
           ) : page === "학생 관리" ? (
             <StudentManagement building={building} />
@@ -772,7 +826,9 @@ export default function App() {
             <ActivityLogs key={building} building={building} />
           ) : page === "환경 설정" ? (
             <section className="panel p-7 max-w-2xl">
-              <PageHeading as="h2" emoji="⚙️" className="mb-2">내 프로필</PageHeading>
+              <PageHeading as="h2" emoji="⚙️" className="mb-2">
+                내 프로필
+              </PageHeading>
               <p className="subtext mb-6">
                 가입 시 등록한 실명으로 표시됩니다. 이름 수정은 관리자에게
                 문의해 주세요.
@@ -784,7 +840,9 @@ export default function App() {
             </section>
           ) : page === "이용 안내" ? (
             <section className="panel p-7 max-w-2xl">
-              <PageHeading as="h2" emoji="📖" className="mb-5">상담관리 시작하기</PageHeading>
+              <PageHeading as="h2" emoji="📖" className="mb-5">
+                상담관리 시작하기
+              </PageHeading>
               <div className="space-y-5 text-sm leading-7">
                 <p>1. 학생 관리에서 학생을 추가하고 상담주기를 설정하세요.</p>
                 <p>

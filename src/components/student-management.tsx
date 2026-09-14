@@ -215,7 +215,13 @@ export function StudentManagement({ building }: { building: string }) {
                     className="student-row cursor-pointer transition-colors"
                     onClick={() => edit(student)}
                   >
-                    <td>{student.seat_number || "-"}</td>
+                    <td>
+                      {student.seat_number
+                        ? building === "전체"
+                          ? `${student.building}관 ${student.seat_number}`
+                          : student.seat_number
+                        : "-"}
+                    </td>
                     <td>
                       <button
                         className="font-bold text-left"

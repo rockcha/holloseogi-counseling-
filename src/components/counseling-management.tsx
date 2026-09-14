@@ -451,7 +451,11 @@ export function CounselingManagement({
                     className={`counseling-row cursor-pointer transition-colors ${status.needed ? "counseling-needed" : "counseling-current"}`}
                     onClick={() => onNavigate(href)}
                   >
-                    <td>{row.seat_number}</td>
+                    <td>
+                      {building === "전체"
+                        ? `${row.building}관 ${row.seat_number}`
+                        : row.seat_number}
+                    </td>
                     <td>
                       <a
                         href={href}
@@ -630,7 +634,9 @@ export function CounselingManagement({
                 required
                 maxLength={10000}
                 rows={18}
-                className="min-h-[420px] resize-y leading-8"
+                spellCheck={false}
+                autoCorrect="off"
+                className="journal-textarea min-h-[420px] resize-y leading-8"
               />
             </label>
             <label className="field">
@@ -647,7 +653,9 @@ export function CounselingManagement({
                 aria-label="특이사항"
                 maxLength={5000}
                 rows={6}
-                className="resize-y leading-8"
+                spellCheck={false}
+                autoCorrect="off"
+                className="journal-textarea resize-y leading-8"
                 placeholder="다음 상담에서 확인할 사항이나 특별히 살펴볼 점을 적어 주세요."
               />
             </label>
@@ -664,8 +672,8 @@ export function CounselingManagement({
             {selectedJournal && !readOnly && (
               <Button
                 type="button"
-                variant="outline"
-                className="mr-auto text-destructive"
+                variant="destructive"
+                className="mr-auto"
                 disabled={saving}
                 onClick={() => {
                   setDeleteError("");

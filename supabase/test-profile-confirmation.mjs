@@ -63,6 +63,22 @@ try {
   assert.deepEqual(await profiles(), repaired);
   await db.exec(`update auth.users set email_confirmed_at = now() where id = '00000000-0000-0000-0000-000000000006';`);
   assert.equal((await profiles()).length, 6);
+  const beforeSignupMigration = await profiles();
+  await db.exec(`insert into auth.users values ('00000000-0000-0000-0000-000000000007', '{"name":"기존 미인증"}', null);`);
+  const signupMigration = fs.readFileSync('supabase/migrations/202609140030_profile_on_signup.sql', 'utf8');
+  await db.exec(signupMigration);
+  const afterSignupMigration = await profiles();
+  assert.equal(afterSignupMigration.length, 7);
+  assert.deepEqual(afterSignupMigration.slice(0, 6), beforeSignupMigration);
+  assert.equal(afterSignupMigration[6].is_teacher, false);
+  await db.exec(signupMigration);
+  assert.deepEqual(await profiles(), afterSignupMigration);
+  await db.exec(`insert into auth.users values ('00000000-0000-0000-0000-000000000008', '{"name":"인증 없이 가입","is_teacher":true}', null);`);
+  assert.equal((await profiles()).length, 8);
+  assert.equal((await profiles())[7].is_teacher, false);
+  const authRecord = await db.query(`select email_confirmed_at from auth.users where id = '00000000-0000-0000-0000-000000000007'`);
+  assert.equal(authRecord.rows[0].email_confirmed_at, null);
+  console.log('PASS: 030 immediate profile creation, missing unconfirmed profiles added, existing profiles and auth confirmation unchanged, repeat application safe');
   console.log('PASS: confirmed missing profiles added, existing values unchanged, unconfirmed users excluded, repair idempotent, future confirmation supported');
   console.log('PASS: existing profiles preserved, unconfirmed signup deferred, confirmation creates unapproved profile, repeated events and migration safe, confirmed inserts supported');
 } finally {

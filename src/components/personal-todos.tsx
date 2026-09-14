@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ListTodo, Plus, Search, Trash2 } from "lucide-react";
+import { ListTodo, Plus, Search } from "lucide-react";
 import { MemberProfileContext } from "./auth-gate";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -238,9 +238,7 @@ function TodoWorkspace({
                             </span>
                           </label>
                           <Button
-                            variant="ghost"
-                            size="icon"
-                            className="shrink-0 rounded-lg text-[#9aaabe] hover:bg-[#fceeee] hover:text-[#b55d5d]"
+                            variant="destructive"
                             aria-label={`${item.title} 삭제`}
                             disabled={busy}
                             onClick={() =>
@@ -252,7 +250,7 @@ function TodoWorkspace({
                               })
                             }
                           >
-                            <Trash2 size={15} />
+                            삭제
                           </Button>
                         </li>
                       ))}
