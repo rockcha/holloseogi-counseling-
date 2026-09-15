@@ -366,10 +366,10 @@ export function CounselingManagement({
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <PageHeading as="h2" emoji="💬">
-              상담 리스트
+              {writing ? "상담일지 작성" : "상담 리스트"}
             </PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
-              학생들의 상담 현황을 체크할 수 있습니다.
+              {writing ? "상담일지를 작성할 학생을 선택해 주세요." : "학생들의 상담 현황을 체크할 수 있습니다."}
             </p>
           </div>
         </div>
@@ -444,7 +444,7 @@ export function CounselingManagement({
                   latestDates.get(row.id),
                   today,
                 );
-                const href = `/counseling/students/${row.id}`;
+                const href = `/counseling/students/${row.id}${writing ? "/new" : ""}`;
                 return (
                   <tr
                     key={row.id}

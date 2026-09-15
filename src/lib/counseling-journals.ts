@@ -29,6 +29,20 @@ const columns =
 const localRows = (): Journal[] =>
   JSON.parse(localStorage.getItem(key) ?? "[]");
 
+export type JournalStatistic = Pick<Journal, "id" | "student_id" | "date">;
+
+export async function fetchJournalStatistics(): Promise<JournalStatistic[]> {
+  if (!supabase) return localRows().map(({ id, student_id, date }) => ({ id, student_id, date }));
+  const result: JournalStatistic[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase.from("counseling_journals")
+      .select("id,student_id,date").order("id").range(from, from + 999);
+    if (error) throw error;
+    result.push(...data);
+    if (data.length < 1000) return result;
+  }
+}
+
 export async function fetchLatestCounsels(mineOnly = false): Promise<LatestCounsel[]> {
   if (!supabase) {
     const latest = new Map<string, string>();

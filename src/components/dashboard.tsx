@@ -499,7 +499,7 @@ export function Dashboard({
     return (
       <section className="panel p-7">
         <p role="alert">
-          대시보드를 불러오지 못했습니다. 아래 조회 오류를 확인해 주세요.
+          내 상담실을 불러오지 못했습니다. 아래 조회 오류를 확인해 주세요.
         </p>
         <p className="mt-2 text-sm break-words text-muted-foreground">
           {error}
@@ -518,8 +518,8 @@ export function Dashboard({
     );
   return (
     <>
-      <PageHeading emoji="🏠" className="mb-4">
-        대시보드
+      <PageHeading emoji="🛋️" className="mb-4">
+        내 상담실
       </PageHeading>
       <div className="dashboard-columns">
         <section

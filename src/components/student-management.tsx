@@ -36,16 +36,18 @@ import {
   type Student,
 } from "@/lib/students";
 import { toast } from "sonner";
+import { StudentSeating } from "./student-seating";
 
-export function StudentManagement({ building }: { building: string }) {
+export function StudentManagement({ building, view = "list", adding = false, onAddClose }: { building: string; view?: "list" | "seating"; adding?: boolean; onAddClose?: () => void }) {
   const member = useContext(MemberProfileContext);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(adding);
   const [selected, setSelected] = useState<Student | null>(null);
+  const [seatDraft, setSeatDraft] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const lock = useRef(false);
   const [error, setError] = useState("");
@@ -71,7 +73,14 @@ export function StudentManagement({ building }: { building: string }) {
       active = false;
     };
   }, [reload]);
+  useEffect(() => {
+    if (adding) edit(null);
+  }, [adding]);
+  useEffect(() => {
+    if (!open && adding) onAddClose?.();
+  }, [open]);
   function edit(student: Student | null) {
+    setSeatDraft(null);
     setSelected(student);
     setError("");
     setConfirmDelete(false);
@@ -128,6 +137,7 @@ export function StudentManagement({ building }: { building: string }) {
     );
   return (
     <>
+      {view === "seating" ? <StudentSeating building={building} students={students} loading={loading} error={loadError} onRetry={() => setReload(value => value + 1)} onSelect={(student, seat) => { edit(student); setSeatDraft(seat); }} /> : (
       <section className="panel page-panel overflow-hidden">
         <div>
           <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
@@ -278,6 +288,7 @@ export function StudentManagement({ building }: { building: string }) {
           </div>
         )}
       </section>
+      )}
       <Dialog
         open={open}
         onOpenChange={(value) => {
@@ -294,7 +305,7 @@ export function StudentManagement({ building }: { building: string }) {
             </DialogDescription>
           </DialogHeader>
           <form
-            key={selected?.id ?? "new"}
+            key={selected?.id ?? seatDraft ?? "new"}
             className="grid gap-4"
             onSubmit={(event) => {
               event.preventDefault();
@@ -353,7 +364,7 @@ export function StudentManagement({ building }: { building: string }) {
                 <Select
                   name="building"
                   defaultValue={String(
-                    selected?.building ?? (building === "2" ? 2 : 1),
+                    selected?.building ?? (seatDraft || building === "2" ? 2 : 1),
                   )}
                   disabled={busy}
                 >
@@ -391,7 +402,7 @@ export function StudentManagement({ building }: { building: string }) {
                   pattern="(?:[A-Za-z]+[0-9]+|502-[0-9]+)"
                   maxLength={20}
                   placeholder="M13, W01, 502-1"
-                  defaultValue={selected?.seat_number}
+                  defaultValue={selected?.seat_number ?? seatDraft ?? ""}
                 />
               </label>
               <div className="field">

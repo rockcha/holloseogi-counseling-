@@ -1,6 +1,6 @@
 import { useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ListTodo, Plus, Search } from "lucide-react";
+import { ListTodo, Plus, Search, Trash2 } from "lucide-react";
 import { MemberProfileContext } from "./auth-gate";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
@@ -48,13 +48,13 @@ function TodoWorkspace({
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
   const [retry, setRetry] = useState(0);
-  const [todoFilter, setTodoFilter] = useState<"active" | "completed">(
-    "active",
+  const [todoFilter, setTodoFilter] = useState<"all" | "active" | "completed">(
+    "all",
   );
   const lock = useRef(false);
   const remaining = items.filter((item) => !item.completed).length;
   const visibleItems = items.filter(
-    (item) => item.completed === (todoFilter === "completed"),
+    (item) => todoFilter === "all" || item.completed === (todoFilter === "completed"),
   );
 
   useEffect(() => {
@@ -93,7 +93,7 @@ function TodoWorkspace({
 
   function list() {
     return (
-      <div className="space-y-5" aria-busy={loading || busy}>
+      <div className="flex flex-1 flex-col gap-5" aria-busy={loading || busy}>
         {!loading && !loadError && (
           <>
             <p className="sr-only" role="status">
@@ -143,10 +143,11 @@ function TodoWorkspace({
             {error}
           </p>
         )}
-        {!loading && !loadError && items.length > 0 && (
+        {!loading && !loadError && (
           <div className="flex w-fit gap-1 rounded-lg bg-[#edf1f6] p-1">
             {(
               [
+                ["all", "전체"],
                 ["active", "해야 할 일"],
                 ["completed", "완료한 일"],
               ] as const
@@ -182,8 +183,8 @@ function TodoWorkspace({
           </div>
         ) : (
           <>
-            {items.length === 0 ? (
-              <div className="rounded-2xl border border-dashed border-[#e1e7ef] px-5 py-12 text-center">
+            {items.length === 0 && todoFilter === "all" ? (
+              <div className="flex min-h-64 flex-1 flex-col items-center justify-center rounded-2xl border border-dashed border-[#e1e7ef] px-5 py-12 text-center">
                 <span aria-hidden="true" className="text-3xl">
                   🌱
                 </span>
@@ -195,10 +196,13 @@ function TodoWorkspace({
                 </p>
               </div>
             ) : (
-              <div className="space-y-6">
+              <div className="flex flex-1 flex-col">
                 <section
+                  className="flex flex-1 flex-col"
                   aria-label={
-                    todoFilter === "completed"
+                    todoFilter === "all"
+                      ? "전체 할 일"
+                      : todoFilter === "completed"
                       ? "완료한 할 일"
                       : "진행 중인 할 일"
                   }
@@ -215,7 +219,7 @@ function TodoWorkspace({
                               type="checkbox"
                               checked={item.completed}
                               disabled={busy}
-                              className="mt-0.5 size-5 shrink-0 cursor-pointer accent-[#62866d] disabled:cursor-wait"
+                              className="mt-0.5 size-5 shrink-0 cursor-pointer accent-[#17283f] disabled:cursor-wait"
                               onChange={() =>
                                 void mutate(async () => {
                                   const row = await completePersonalTodo(
@@ -239,6 +243,7 @@ function TodoWorkspace({
                           </label>
                           <Button
                             variant="destructive"
+                            size="icon"
                             aria-label={`${item.title} 삭제`}
                             disabled={busy}
                             onClick={() =>
@@ -250,13 +255,13 @@ function TodoWorkspace({
                               })
                             }
                           >
-                            삭제
+                            <Trash2 size={16} aria-hidden="true" />
                           </Button>
                         </li>
                       ))}
                     </ul>
                   ) : (
-                    <p className="rounded-lg border border-dashed border-[#e1e7ef] px-4 py-8 text-center text-sm text-muted-foreground">
+                    <p className="flex min-h-64 flex-1 items-center justify-center rounded-lg border border-dashed border-[#e1e7ef] px-4 py-8 text-center text-sm text-muted-foreground">
                       {todoFilter === "completed"
                         ? "완료한 일이 없습니다."
                         : "해야 할 일이 없습니다."}
@@ -299,7 +304,7 @@ function TodoWorkspace({
       </Dialog>
       {container &&
         createPortal(
-          <section className="panel w-full p-5 sm:p-6" aria-label="내 할 일">
+          <section className="panel flex w-full flex-col p-5 sm:p-6" aria-label="내 할 일">
             <div className="mb-7">
               <PageHeading emoji="📋">할 일</PageHeading>
               <p className="subtext mt-2">

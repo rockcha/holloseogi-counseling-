@@ -22,8 +22,8 @@ import {
   ChevronLeft,
   ChevronRight,
   Clock3,
+  Armchair,
   StickyNote,
-  LayoutDashboard,
   Lightbulb,
   LogOut,
   Menu,
@@ -56,7 +56,9 @@ import { useAnnouncements } from "@/components/use-announcements";
 import { matchesTarget } from "@/lib/announcements";
 import { Dashboard } from "@/components/dashboard";
 import { StudentManagement } from "@/components/student-management";
+import { StudentStatistics } from "@/components/student-statistics";
 import { FloatingMemo } from "@/components/floating-memo";
+import { CounselingStatistics } from "@/components/counseling-statistics";
 import { PersonalTodos } from "@/components/personal-todos";
 import { WeatherDialog } from "@/components/weather-dialog";
 import { BrandLogo } from "@/components/brand-logo";
@@ -78,12 +80,12 @@ import {
 } from "@/components/ui/tooltip";
 
 const pages = [
-  { name: "대시보드", icon: LayoutDashboard },
+  { name: "내 상담실", icon: Armchair },
   { name: "학생 관리", icon: Users },
   { name: "상담 관리", icon: MessageSquare },
 ];
 const pageHints: Record<string, string> = {
-  대시보드: "학생들의 상담 현황을 체크할 수 있습니다.",
+  "내 상담실": "학생들의 상담 현황을 체크할 수 있습니다.",
   "학생 관리": "학생 정보를 등록하고 관리할 수 있습니다.",
   "상담 관리": "학생들의 상담 리스트와 상담일지를 관리할 수 있습니다.",
   시간표: "준비중",
@@ -127,13 +129,15 @@ export default function App() {
         ? "건의함"
         : window.location.pathname.startsWith("/counseling")
           ? "상담 관리"
-          : window.location.pathname === "/timetable"
-            ? "시간표"
-            : window.location.pathname === "/todos"
-              ? "할 일"
-              : window.location.pathname === "/memo"
-                ? "메모장"
-                : "대시보드",
+          : window.location.pathname.startsWith("/students")
+            ? "학생 관리"
+            : window.location.pathname === "/timetable"
+              ? "시간표"
+              : window.location.pathname === "/todos"
+                ? "할 일"
+                : window.location.pathname === "/memo"
+                  ? "메모장"
+                  : "내 상담실",
   );
   const studentId =
     path.match(
@@ -150,13 +154,15 @@ export default function App() {
             ? "건의함"
             : window.location.pathname.startsWith("/counseling")
               ? "상담 관리"
-              : window.location.pathname === "/timetable"
-                ? "시간표"
-                : window.location.pathname === "/todos"
-                  ? "할 일"
-                  : window.location.pathname === "/memo"
-                    ? "메모장"
-                    : "대시보드",
+              : window.location.pathname.startsWith("/students")
+                ? "학생 관리"
+                : window.location.pathname === "/timetable"
+                  ? "시간표"
+                  : window.location.pathname === "/todos"
+                    ? "할 일"
+                    : window.location.pathname === "/memo"
+                      ? "메모장"
+                      : "내 상담실",
       );
     };
     window.addEventListener("popstate", onPop);
@@ -376,9 +382,10 @@ export default function App() {
     date.setDate(date.getDate() + offset);
     setDay(localDate(date));
   }
-  async function navigate(name: string) {
+  async function navigate(name: string, destination?: string) {
     const next =
-      name === "전달 내용"
+      destination ??
+      (name === "전달 내용"
         ? "/community/announcements"
         : name === "건의함"
           ? "/community/suggestions"
@@ -390,7 +397,9 @@ export default function App() {
                 ? "/todos"
                 : name === "메모장"
                   ? "/memo"
-                  : "/";
+                  : name === "학생 관리"
+                    ? "/students"
+                    : "/");
     if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(name);
@@ -458,7 +467,7 @@ export default function App() {
             className="brand"
             onClick={(e) => {
               e.preventDefault();
-              navigate("대시보드");
+              navigate("내 상담실");
             }}
           >
             <BrandLogo className="sidebar-logo" />
@@ -469,18 +478,61 @@ export default function App() {
           </a>
           <SidebarGroup id="workspace" title="WORKSPACE">
             {pages.map(({ name, icon: Icon }) => (
-              <Tooltip key={name}>
-                <TooltipTrigger asChild>
-                  <button
-                    className={`nav-item ${page === name ? "active" : ""}`}
-                    onClick={() => navigate(name)}
-                  >
-                    <Icon size={18} />
-                    {name}
-                  </button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{pageHints[name]}</TooltipContent>
-              </Tooltip>
+              <div key={name}>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <button
+                      className={`nav-item ${page === name ? "active" : ""}`}
+                      onClick={() => navigate(name)}
+                    >
+                      <Icon size={18} />
+                      {name}
+                    </button>
+                  </TooltipTrigger>
+                  <TooltipContent side="right">
+                    {pageHints[name]}
+                  </TooltipContent>
+                </Tooltip>
+                {(name === "학생 관리" || name === "상담 관리") && (
+                  <div className="sidebar-submenu">
+                    {(name === "학생 관리"
+                      ? [
+                          ["학생 리스트", "/students"],
+                          ["배치도", "/students/seating"],
+                          ["통계", "/students/statistics"],
+                        ]
+                      : [
+                          ["상담 리스트", "/counseling"],
+                          ["통계", "/counseling/statistics"],
+                        ]
+                    ).map(([label, destination]) => {
+                      const active =
+                        page === name &&
+                        (destination === "/counseling"
+                          ? path !== "/counseling/statistics"
+                          : destination === "/students"
+                            ? ![
+                                "/students/statistics",
+                                "/students/seating",
+                              ].includes(path)
+                            : path === destination);
+                      return (
+                        <button
+                          key={destination}
+                          type="button"
+                          className={
+                            "sidebar-subitem " + (active ? "selected" : "")
+                          }
+                          aria-current={active ? "page" : undefined}
+                          onClick={() => void navigate(name, destination)}
+                        >
+                          {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             ))}
           </SidebarGroup>
           <SidebarGroup id="community" title="COMMUNITY">
@@ -595,6 +647,20 @@ export default function App() {
             </span>
             <ChevronRight className="hidden sm:inline" size={13} />
             <span className="hidden text-[#17283f] sm:inline">{page}</span>
+            {(page === "학생 관리" || page === "상담 관리") && (
+              <>
+                <ChevronRight className="hidden sm:inline" size={13} />
+                <span className="hidden font-semibold text-[#17283f] sm:inline">
+                  {path.endsWith("/statistics")
+                    ? "통계"
+                    : path === "/students/seating"
+                      ? "배치도"
+                      : page === "학생 관리"
+                        ? "학생 리스트"
+                        : "상담 리스트"}
+                </span>
+              </>
+            )}
           </div>
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
@@ -798,8 +864,10 @@ export default function App() {
               onOpen={(id) => openCommunityPost(id, "suggestion")}
               mode="suggestion"
             />
-          ) : page === "대시보드" ? (
+          ) : page === "내 상담실" ? (
             <Dashboard building={building} onNavigate={navigateCounseling} />
+          ) : page === "상담 관리" && path === "/counseling/statistics" ? (
+            <CounselingStatistics building={building} />
           ) : page === "상담 관리" ? (
             <CounselingManagement
               building={building}
@@ -816,12 +884,70 @@ export default function App() {
           ) : page === "시간표" ? (
             <section className="panel p-5 sm:p-6">
               <PageHeading emoji="🗓️">시간표</PageHeading>
-              <p className="py-24 text-center text-sm text-muted-foreground">
-                준비중
+              <p className="mt-2 text-sm text-muted-foreground">
+                시간표 기능을 준비 중입니다.
               </p>
+              <div className="mt-6 overflow-x-auto rounded-xl border border-[#e1e7ef]">
+                <table className="w-full min-w-[560px] table-fixed border-collapse text-sm">
+                  <caption className="sr-only">
+                    월요일부터 일요일까지 오전 9시~오후 11시 빈 시간표
+                  </caption>
+                  <thead>
+                    <tr className="bg-[#f7f9fc] text-[#17283f]">
+                      <th
+                        scope="col"
+                        className="w-16 border-b border-[#e1e7ef] py-3 text-xs font-medium text-muted-foreground"
+                      >
+                        시간
+                      </th>
+                      {["월", "화", "수", "목", "금", "토", "일"].map((day) => (
+                        <th
+                          key={day}
+                          scope="col"
+                          className="border-b border-l border-[#e1e7ef] py-3 font-medium"
+                        >
+                          {day}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {Array.from({ length: 15 }, (_, index) => index + 9).map(
+                      (hour) => (
+                        <tr
+                          key={hour}
+                          className="h-12 border-b border-[#e1e7ef] last:border-b-0"
+                        >
+                          <th
+                            scope="row"
+                            className="bg-[#fbfcfe] text-center text-xs font-normal tabular-nums text-muted-foreground"
+                          >
+                            {hour}:00
+                          </th>
+                          {["월", "화", "수", "목", "금", "토", "일"].map(
+                            (day) => (
+                              <td
+                                key={day}
+                                className="border-l border-[#e1e7ef]"
+                              />
+                            ),
+                          )}
+                        </tr>
+                      ),
+                    )}
+                  </tbody>
+                </table>
+              </div>
             </section>
+          ) : page === "학생 관리" && path === "/students/statistics" ? (
+            <StudentStatistics building={building} />
           ) : page === "학생 관리" ? (
-            <StudentManagement building={building} />
+            <StudentManagement
+              building={building}
+              view={path === "/students/seating" ? "seating" : "list"}
+              adding={path === "/students/new"}
+              onAddClose={() => void navigate("학생 관리", "/students")}
+            />
           ) : page === "활동 로그" ? (
             <ActivityLogs key={building} building={building} />
           ) : page === "환경 설정" ? (
@@ -850,8 +976,8 @@ export default function App() {
                   기록을 확인할 수 있습니다.
                 </p>
                 <p>
-                  3. 상담일지를 저장하면 대시보드에 상담 완료로 반영됩니다. 활동
-                  로그에서 작업 내역을 확인하세요.
+                  3. 상담일지를 저장하면 내 상담실에 상담 완료로 반영됩니다.
+                  활동 로그에서 작업 내역을 확인하세요.
                 </p>
                 <p className="rounded-lg bg-muted p-4">
                   {supabase
