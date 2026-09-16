@@ -29,11 +29,14 @@ import {
   counselingStatus,
   createJournal,
   deleteJournal,
+  fetchAllJournals,
+  fetchCounselingTeachers,
   fetchJournals,
   fetchLatestCounsels,
   updateJournal,
   type Journal,
   type LatestCounsel,
+  type CounselingTeacher,
 } from "@/lib/counseling-journals";
 import { localDate } from "@/data";
 import { toast } from "sonner";
@@ -391,6 +394,7 @@ function StudentDetailsDialog({
 
 export function CounselingManagement({
   building,
+  teacherView,
   studentId,
   writing,
   journalId,
@@ -398,6 +402,7 @@ export function CounselingManagement({
   onDirtyChange,
 }: {
   building: string;
+  teacherView?: boolean;
   studentId: string | null;
   writing: boolean;
   journalId: string | null;
@@ -411,6 +416,8 @@ export function CounselingManagement({
   const [students, setStudents] = useState<Student[]>([]);
   const [latest, setLatest] = useState<LatestCounsel[]>([]);
   const [journals, setJournals] = useState<Journal[]>([]);
+  const [allJournals, setAllJournals] = useState<Journal[]>([]);
+  const [teachers, setTeachers] = useState<CounselingTeacher[]>([]);
   const [parentMessages, setParentMessages] = useState<LatestParentMessage[]>(
     [],
   );
@@ -463,6 +470,7 @@ export function CounselingManagement({
   const [loadError, setLoadError] = useState(false);
   const [reload, setReload] = useState(0);
   const [query, setQuery] = useState("");
+  const [teacherFilter, setTeacherFilter] = useState("");
   const [seatFilter, setSeatFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const lock = useRef(false);
@@ -489,12 +497,16 @@ export function CounselingManagement({
       fetchStudents(),
       fetchLatestCounsels(),
       studentId ? fetchJournals(studentId) : Promise.resolve([]),
+      teacherView ? fetchAllJournals() : Promise.resolve([]),
+      teacherView ? fetchCounselingTeachers() : Promise.resolve([]),
     ])
-      .then(([rows, summary, logs]) => {
+      .then(([rows, summary, logs, allLogs, teacherRows]) => {
         if (active) {
           setStudents(rows);
           setLatest(summary);
           setJournals(logs);
+          setAllJournals(allLogs);
+          setTeachers(teacherRows);
         }
       })
       .catch(() => {
@@ -506,7 +518,13 @@ export function CounselingManagement({
     return () => {
       active = false;
     };
-  }, [studentId, reload]);
+  }, [studentId, reload, teacherView]);
+
+  useEffect(() => {
+    if (teacherView && !teacherFilter && member?.id) {
+      setTeacherFilter(member.id);
+    }
+  }, [teacherView, teacherFilter, member?.id]);
 
   const student = students.find((row) => row.id === studentId);
   useEffect(() => {
@@ -554,6 +572,17 @@ export function CounselingManagement({
     { value: "W", label: "W" },
     { value: "M", label: "M" },
   ];
+  const studentNames = new Map(students.map((row) => [row.id, row.name]));
+  const teacherJournals = allJournals.filter((row) => {
+    const student = students.find((item) => item.id === row.student_id);
+    return (
+      row.counselor_id === teacherFilter &&
+      (!student ||
+        building === "전체" ||
+        String(student.building) === building) &&
+      (studentNames.get(row.student_id) ?? "").includes(query.trim())
+    );
+  });
   const counselorName = member?.name ?? "홀로서기";
   async function save(form: HTMLFormElement) {
     if (!student || lock.current) return;
@@ -709,13 +738,96 @@ export function CounselingManagement({
         </p>
       </section>
     );
+  if (teacherView && !studentId)
+    return (
+      <section className="panel page-panel overflow-hidden">
+        <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <PageHeading as="h2" emoji="👩‍🏫">
+              선생님별 상담 리스트
+            </PageHeading>
+            <p className="mt-1 text-xs text-muted-foreground">
+              선생님을 선택하면 해당 선생님이 작성한 상담 기록을 확인할 수
+              있습니다.
+            </p>
+          </div>
+          <label className="flex items-center gap-2 text-sm font-semibold">
+            선생님
+            <select
+              aria-label="상담 선생님 선택"
+              value={teacherFilter}
+              onChange={(event) => setTeacherFilter(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm font-normal"
+            >
+              {teachers.map((teacher) => (
+                <option key={teacher.id} value={teacher.id}>
+                  {teacher.name} 선생님
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+        <div className="px-5 sm:px-6 pb-5 flex flex-wrap items-center justify-between gap-3">
+          <Input
+            aria-label="학생 이름 검색"
+            placeholder="학생 이름 검색"
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            className="w-64"
+          />
+          <span className="text-xs text-muted-foreground">
+            {teacherJournals.length}건
+          </span>
+        </div>
+        <div className="table-wrap page-table-wrap overflow-y-auto overscroll-contain">
+          <table>
+            <thead className="sticky top-0 z-10">
+              <tr>
+                <th>날짜</th>
+                <th>학생</th>
+                <th>상담자</th>
+                <th>상담 내용</th>
+              </tr>
+            </thead>
+            <tbody>
+              {teacherJournals.map((row) => {
+                const href = `/counseling/students/${row.student_id}/journals/${row.id}`;
+                return (
+                  <tr
+                    key={row.id}
+                    className="student-row cursor-pointer"
+                    onClick={() => onNavigate(href)}
+                  >
+                    <td className="whitespace-nowrap">
+                      {row.date.replaceAll("-", ".")}
+                    </td>
+                    <td className="font-semibold">
+                      {studentNames.get(row.student_id) ?? "삭제된 학생"}
+                    </td>
+                    <td>{row.counselor_name}</td>
+                    <td className="max-w-[28rem] truncate">
+                      {plainTextFromRichText(row.content)}
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+          {!teacherJournals.length && (
+            <p className="p-12 text-center text-sm text-muted-foreground">
+              선택한 조건에 맞는 상담 기록이 없습니다.
+            </p>
+          )}
+        </div>
+      </section>
+    );
   if (!studentId)
     return (
       <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <PageHeading as="h2" emoji="💬">
-              {writing ? "상담일지 작성" : "상담 리스트"}
+              {writing ? "상담일지 작성" : "학생별 상담 리스트"}
             </PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
               {writing

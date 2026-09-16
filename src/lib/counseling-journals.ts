@@ -14,6 +14,7 @@ export type Journal = {
   parent_message_sent?: boolean;
   created_at: string;
 };
+export type CounselingTeacher = { id: string; name: string };
 export type JournalDraft = Pick<
   Journal,
   "student_id" | "date" | "content" | "special_notes" | "parent_message_sent"
@@ -29,21 +30,42 @@ const columns =
 const localRows = (): Journal[] =>
   JSON.parse(localStorage.getItem(key) ?? "[]");
 
+export async function fetchCounselingTeachers(): Promise<CounselingTeacher[]> {
+  if (!supabase) return [];
+  const { data, error } = await supabase
+    .from("profiles")
+    .select("id,name")
+    .eq("is_teacher", true)
+    .order("name");
+  if (error) throw error;
+  return data as CounselingTeacher[];
+}
+
 export type JournalStatistic = Pick<Journal, "id" | "student_id" | "date">;
 
 export async function fetchJournalStatistics(): Promise<JournalStatistic[]> {
-  if (!supabase) return localRows().map(({ id, student_id, date }) => ({ id, student_id, date }));
+  if (!supabase)
+    return localRows().map(({ id, student_id, date }) => ({
+      id,
+      student_id,
+      date,
+    }));
   const result: JournalStatistic[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from("counseling_journals")
-      .select("id,student_id,date").order("id").range(from, from + 999);
+    const { data, error } = await supabase
+      .from("counseling_journals")
+      .select("id,student_id,date")
+      .order("id")
+      .range(from, from + 999);
     if (error) throw error;
     result.push(...data);
     if (data.length < 1000) return result;
   }
 }
 
-export async function fetchLatestCounsels(mineOnly = false): Promise<LatestCounsel[]> {
+export async function fetchLatestCounsels(
+  mineOnly = false,
+): Promise<LatestCounsel[]> {
   if (!supabase) {
     const latest = new Map<string, string>();
     const counts = new Map<string, number>();
@@ -71,13 +93,22 @@ export async function fetchLatestCounsels(mineOnly = false): Promise<LatestCouns
   }
 }
 
-export async function fetchMyTodayJournals(date: string, teacherId?: string): Promise<Journal[]> {
-  if (!supabase) return localRows().filter(row => row.date === date);
+export async function fetchMyTodayJournals(
+  date: string,
+  teacherId?: string,
+): Promise<Journal[]> {
+  if (!supabase) return localRows().filter((row) => row.date === date);
   if (!teacherId) return [];
   const result: Journal[] = [];
   for (let from = 0; ; from += 1000) {
-    const { data, error } = await supabase.from("counseling_journals").select(columns)
-      .eq("counselor_id", teacherId).eq("date", date).order("created_at").order("id").range(from, from + 999);
+    const { data, error } = await supabase
+      .from("counseling_journals")
+      .select(columns)
+      .eq("counselor_id", teacherId)
+      .eq("date", date)
+      .order("created_at")
+      .order("id")
+      .range(from, from + 999);
     if (error) throw error;
     result.push(...data);
     if (data.length < 1000) return result;
@@ -105,6 +136,29 @@ export async function fetchJournals(studentId: string): Promise<Journal[]> {
       .range(from, from + 999);
     if (error) throw error;
     result.push(...data);
+    if (data.length < 1000) return result;
+  }
+}
+
+export async function fetchAllJournals(): Promise<Journal[]> {
+  if (!supabase) {
+    return localRows().sort(
+      (a, b) =>
+        b.date.localeCompare(a.date) ||
+        b.created_at.localeCompare(a.created_at),
+    );
+  }
+  const result: Journal[] = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await supabase
+      .from("counseling_journals")
+      .select(columns)
+      .order("date", { ascending: false })
+      .order("created_at", { ascending: false })
+      .order("id")
+      .range(from, from + 999);
+    if (error) throw error;
+    result.push(...(data as Journal[]));
     if (data.length < 1000) return result;
   }
 }

@@ -504,14 +504,18 @@ export default function App() {
                           ["통계", "/students/statistics"],
                         ]
                       : [
-                          ["상담 리스트", "/counseling"],
+                          ["학생별 상담 리스트", "/counseling"],
+                          ["선생님별 상담 리스트", "/counseling/teachers"],
                           ["통계", "/counseling/statistics"],
                         ]
                     ).map(([label, destination]) => {
                       const active =
                         page === name &&
                         (destination === "/counseling"
-                          ? path !== "/counseling/statistics"
+                          ? ![
+                              "/counseling/statistics",
+                              "/counseling/teachers",
+                            ].includes(path)
                           : destination === "/students"
                             ? ![
                                 "/students/statistics",
@@ -641,11 +645,13 @@ export default function App() {
                 <span className="hidden font-semibold text-[#17283f] sm:inline">
                   {path.endsWith("/statistics")
                     ? "통계"
-                    : path === "/students/seating"
-                      ? "배치도"
-                      : page === "학생 관리"
-                        ? "학생 리스트"
-                        : "상담 리스트"}
+                    : path === "/counseling/teachers"
+                      ? "선생님별 상담 리스트"
+                      : path === "/students/seating"
+                        ? "배치도"
+                        : page === "학생 관리"
+                          ? "학생 리스트"
+                          : "학생별 상담 리스트"}
                 </span>
               </>
             )}
@@ -859,6 +865,7 @@ export default function App() {
           ) : page === "상담 관리" ? (
             <CounselingManagement
               building={building}
+              teacherView={path === "/counseling/teachers"}
               writing={/\/new\/?$/.test(path)}
               journalId={path.match(/\/journals\/([^/]+)\/?$/)?.[1] ?? null}
               studentId={studentId}
