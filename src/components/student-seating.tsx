@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { DoorOpen, LayoutGrid, Users } from "lucide-react";
+import { DoorOpen, LayoutGrid } from "lucide-react";
 import type { Student } from "@/lib/students";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
@@ -121,9 +121,8 @@ export function StudentSeating({
   onRetry: () => void;
   onSelect: (student: Student | null, seat: string) => void;
 }) {
-  const [localBuilding, setLocalBuilding] = useState("2");
   const [room, setRoom] = useState<Room>("502");
-  const selectedBuilding = building === "전체" ? localBuilding : building;
+  const selectedBuilding = building === "전체" ? "2" : building;
   const activeRoom = room;
   const layout = layouts[activeRoom];
   const occupants = new Map(
@@ -145,19 +144,6 @@ export function StudentSeating({
           </p>
         </div>
         <div className="flex gap-2">
-          {building === "전체" && (
-            <label className="seating-select-label">
-              관
-              <select
-                aria-label="배치도 관 선택"
-                value={localBuilding}
-                onChange={(event) => setLocalBuilding(event.target.value)}
-              >
-                <option value="1">1관</option>
-                <option value="2">2관</option>
-              </select>
-            </label>
-          )}
           {selectedBuilding === "2" && (
             <label className="seating-select-label">
               강의실
@@ -197,14 +183,25 @@ export function StudentSeating({
       ) : (
         <>
           <div className="seating-summary">
-            <div className="flex items-center gap-2">
-              <Users size={16} aria-hidden="true" />
-              <strong>
-                {layout.building}관 · {activeRoom}호
+            <div className="seating-summary-main">
+              <strong className="seating-count">
+                사용 중 {occupied}명 <span>/ 전체 {layout.seats.length}석</span>
               </strong>
-              <span>
-                {occupied}명 / {layout.seats.length}석
-              </span>
+              <div
+                className="seating-progress"
+                role="progressbar"
+                aria-label="좌석 사용률"
+                aria-valuemin={0}
+                aria-valuemax={layout.seats.length}
+                aria-valuenow={occupied}
+              >
+                <div
+                  className="seating-progress-bar"
+                  style={{
+                    width: `${(occupied / layout.seats.length) * 100}%`,
+                  }}
+                />
+              </div>
             </div>
             <div className="seating-legend">
               <span>
@@ -216,10 +213,6 @@ export function StudentSeating({
               </span>
             </div>
           </div>
-          <p className="mb-3 text-xs text-muted-foreground">
-            좌석의 이름은 현재 등록된 학생 정보입니다. 넓은 배치도는 좌우로
-            스크롤해 확인하세요.
-          </p>
           <div
             className="seating-scroll"
             tabIndex={0}

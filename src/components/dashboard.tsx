@@ -5,7 +5,7 @@ import { useContext, useEffect, useRef, useState } from "react";
 import {
   CalendarDays,
   CheckCheck,
-  Clipboard,
+  Copy,
   Clock3,
   MessageSquare,
   Plus,
@@ -163,9 +163,11 @@ function RemoveButton({
 export function Dashboard({
   building,
   onNavigate,
+  onMemoContainer,
 }: {
   building: string;
   onNavigate: (path: string) => void;
+  onMemoContainer?: (container: HTMLDivElement | null) => void;
 }) {
   const member = useContext(MemberProfileContext);
   const [students, setStudents] = useState<Student[]>([]);
@@ -173,7 +175,6 @@ export function Dashboard({
   const [myLatest, setMyLatest] = useState<LatestCounsel[]>([]);
   const [todayJournals, setTodayJournals] = useState<Journal[]>([]);
   const [upcomingSort, setUpcomingSort] = useState<DashboardSort>("seat");
-  const [completedSort, setCompletedSort] = useState<DashboardSort>("seat");
   const [plans, setPlans] = useState<CounselingPlan[]>([]);
   const [parentMessages, setParentMessages] = useState<LatestParentMessage[]>(
     [],
@@ -182,7 +183,8 @@ export function Dashboard({
   const [error, setError] = useState("");
   const [reload, setReload] = useState(0);
   const [today, setToday] = useState(localDate());
-  const [neededSort, setNeededSort] = useState("seat");
+  const [neededSeatFilter, setNeededSeatFilter] = useState("all");
+  const [completedSeatFilter, setCompletedSeatFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -191,6 +193,14 @@ export function Dashboard({
   const [markingMessages, setMarkingMessages] = useState(false);
   const [saveError, setSaveError] = useState("");
   const lock = useRef(false);
+  useEffect(() => {
+    if (building === "1" && neededSeatFilter === "502") {
+      setNeededSeatFilter("all");
+    }
+    if (building === "1" && completedSeatFilter === "502") {
+      setCompletedSeatFilter("all");
+    }
+  }, [building, neededSeatFilter, completedSeatFilter]);
   useEffect(() => {
     let active = true;
     let fetching = false;
@@ -271,10 +281,14 @@ export function Dashboard({
   };
   const needed = visible
     .filter(
-      (row) => counselingStatus(row, latestDates.get(row.id), today).needed,
+      (row) =>
+        counselingStatus(row, latestDates.get(row.id), today).needed &&
+        (neededSeatFilter === "all" ||
+          (neededSeatFilter === "M" && row.seat_number.startsWith("M")) ||
+          (neededSeatFilter === "W" && row.seat_number.startsWith("W")) ||
+          (neededSeatFilter === "502" && row.seat_number.startsWith("502"))),
     )
     .sort((a, b) => {
-      if (neededSort === "seat") return seatOrder(a, b);
       const aDue = dueDate(a),
         bDue = dueDate(b);
       if (aDue === null || bDue === null)
@@ -291,14 +305,19 @@ export function Dashboard({
       firstCounselTimes.set(journal.student_id, journal.created_at);
   }
   const completed = visible
-    .filter((row) => myLatestDates.get(row.id) === today)
+    .filter(
+      (row) =>
+        myLatestDates.get(row.id) === today &&
+        (completedSeatFilter === "all" ||
+          (completedSeatFilter === "M" && row.seat_number.startsWith("M")) ||
+          (completedSeatFilter === "W" && row.seat_number.startsWith("W")) ||
+          (completedSeatFilter === "502" && row.seat_number.startsWith("502"))),
+    )
     .sort(
       (a, b) =>
-        (completedSort === "oldest"
-          ? (firstCounselTimes.get(a.id) ?? "").localeCompare(
-              firstCounselTimes.get(b.id) ?? "",
-            )
-          : 0) || seatOrder(a, b),
+        (firstCounselTimes.get(a.id) ?? "").localeCompare(
+          firstCounselTimes.get(b.id) ?? "",
+        ) || seatOrder(a, b),
     );
   const todayJournalByStudent = new Map<string, Journal>();
   for (const journal of todayJournals) {
@@ -534,13 +553,28 @@ export function Dashboard({
               <small className="ml-1 text-xs font-normal">명</small>
             </span>
           </div>
-          <DashboardSortControl
-            label="상담 필요한 학생"
-            value={neededSort === "seat" ? "seat" : "oldest"}
-            onChange={(value) =>
-              setNeededSort(value === "seat" ? "seat" : "overdue")
-            }
-          />
+          <div
+            className="mb-2 flex flex-wrap gap-1 rounded-lg bg-muted p-1"
+            role="group"
+            aria-label="상담 필요한 학생 좌석 필터"
+          >
+            {[
+              { value: "all", label: "전체" },
+              { value: "M", label: "M" },
+              { value: "W", label: "W" },
+              ...(building === "1" ? [] : [{ value: "502", label: "502호" }]),
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={neededSeatFilter === option.value}
+                onClick={() => setNeededSeatFilter(option.value)}
+                className={`rounded-md px-2 py-1.5 text-xs ${neededSeatFilter === option.value ? "bg-white shadow-sm text-primary" : "text-muted-foreground"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <div
             className="dashboard-list space-y-2"
             tabIndex={0}
@@ -572,67 +606,6 @@ export function Dashboard({
             )}
           </div>
         </section>
-        <section aria-label="상담 예정" className="panel p-5 dashboard-section">
-          <div className="flex items-center gap-2 mb-4">
-            <CalendarDays size={18} className="text-[#426083]" />
-            <h2 className="font-bold">상담 예정</h2>
-            <span className="ml-auto text-lg font-bold text-[#426083]">
-              {upcoming.length}
-              <small className="ml-1 text-xs font-normal">건</small>
-            </span>
-          </div>
-          <DashboardSortControl
-            label="상담 예정"
-            value={upcomingSort}
-            onChange={setUpcomingSort}
-          />
-          <div
-            className="dashboard-list space-y-2"
-            tabIndex={0}
-            role="region"
-            aria-label="상담 예정 목록"
-          >
-            {upcoming.map((plan) => (
-              <StudentCard
-                key={plan.id}
-                student={studentMap.get(plan.student_id)!}
-                tone="orange"
-                onNavigate={onNavigate}
-                detail={
-                  plan.time === "00:00" && !plan.note
-                    ? ""
-                    : `${plan.date.replaceAll("-", ".")} ${plan.time}${plan.date < today ? " · 일정 지남" : ""}`
-                }
-                note={plan.note}
-                disabled={saving}
-                onRemove={() => void removePlan(plan)}
-              />
-            ))}
-            {!upcoming.length && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                {students.length
-                  ? "예정된 상담이 없습니다."
-                  : "학생관리에서 학생을 먼저 추가해 주세요."}
-              </p>
-            )}
-          </div>
-          <div className="mt-5 border-t border-[#dce6f2] pt-4">
-            <Button
-              variant="outline"
-              className="w-full"
-              disabled={!available.length}
-              onClick={() => {
-                setQuery("");
-                setSaveError("");
-                setSelectedStudentIds([]);
-                setOpen(true);
-              }}
-            >
-              <Plus size={15} />
-              상담할 학생 추가
-            </Button>
-          </div>
-        </section>
         <section
           aria-label="오늘 상담한 학생"
           className="panel p-5 dashboard-section"
@@ -645,11 +618,28 @@ export function Dashboard({
               <small className="ml-1 text-xs font-normal">명</small>
             </span>
           </div>
-          <DashboardSortControl
-            label="오늘 상담한 학생"
-            value={completedSort}
-            onChange={setCompletedSort}
-          />
+          <div
+            className="mb-2 flex flex-wrap gap-1 rounded-lg bg-muted p-1"
+            role="group"
+            aria-label="오늘 상담한 학생 좌석 필터"
+          >
+            {[
+              { value: "all", label: "전체" },
+              { value: "M", label: "M" },
+              { value: "W", label: "W" },
+              ...(building === "1" ? [] : [{ value: "502", label: "502호" }]),
+            ].map((option) => (
+              <button
+                key={option.value}
+                type="button"
+                aria-pressed={completedSeatFilter === option.value}
+                onClick={() => setCompletedSeatFilter(option.value)}
+                className={`rounded-md px-2 py-1.5 text-xs ${completedSeatFilter === option.value ? "bg-white shadow-sm text-primary" : "text-muted-foreground"}`}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
           <div
             className="dashboard-list space-y-2"
             tabIndex={0}
@@ -669,7 +659,7 @@ export function Dashboard({
               />
             ))}
             {!completed.length && (
-              <p className="py-10 text-center text-sm text-muted-foreground">
+              <p className="py-8 text-center text-sm text-muted-foreground">
                 오늘 작성된 상담 기록이 없습니다.
               </p>
             )}
@@ -739,7 +729,7 @@ export function Dashboard({
                         onClick={() => void copyTodayJournals()}
                         className="size-11 text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
                       >
-                        <Clipboard size={20} />
+                        <Copy size={20} />
                       </Button>
                     </TooltipTrigger>
                     <TooltipContent>오늘의 상담 일지 복사</TooltipContent>
@@ -748,6 +738,9 @@ export function Dashboard({
               </div>
             </div>
           </div>
+        </section>
+        <section aria-label="메모장" className="panel p-5 dashboard-section">
+          <div ref={onMemoContainer} className="memo-dashboard-host" />
         </section>
       </div>
       <Dialog

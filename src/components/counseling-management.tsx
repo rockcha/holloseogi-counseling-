@@ -1,7 +1,7 @@
 import { PageHeading } from "./ui/page-heading";
 import { CounselingSkeleton } from "./ui/skeleton";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Save, BookOpen, Eye, Plus, Search } from "lucide-react";
+import { Eraser, Save, BookOpen, Eye, Plus, Search, Phone } from "lucide-react";
 
 import {
   AlertDialog,
@@ -15,12 +15,6 @@ import {
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "./ui/tooltip";
 import {
   Dialog,
   DialogContent,
@@ -48,6 +42,352 @@ import {
   fetchLatestParentMessages,
   type LatestParentMessage,
 } from "@/lib/parent-messages";
+
+const richTextTags = new Set(["STRONG", "B", "MARK", "BR", "DIV", "P", "SPAN"]);
+
+function sanitizeRichText(value: string) {
+  if (!value.includes("<")) {
+    const element = document.createElement("div");
+    element.textContent = value;
+    return element.innerHTML.replaceAll("\n", "<br>");
+  }
+  const documentFragment = new DOMParser().parseFromString(value, "text/html");
+  documentFragment.body.querySelectorAll("*").forEach((element) => {
+    if (!richTextTags.has(element.tagName)) {
+      element.replaceWith(...Array.from(element.childNodes));
+      return;
+    }
+    if (element.tagName === "SPAN") {
+      const children = Array.from(element.childNodes);
+      const color = (element as HTMLElement).style.backgroundColor;
+      if (!color || !/^(#[0-9a-f]{6}|rgb\([^)]*\))$/i.test(color)) {
+        element.replaceWith(...children);
+        return;
+      }
+      element.setAttribute("style", `background-color: ${color}`);
+      return;
+    }
+    Array.from(element.attributes).forEach((attribute) => {
+      element.removeAttribute(attribute.name);
+    });
+  });
+  return documentFragment.body.innerHTML;
+}
+
+function plainTextFromRichText(value: string) {
+  const element = document.createElement("div");
+  element.innerHTML = sanitizeRichText(value);
+  return element.textContent ?? "";
+}
+
+function RichJournalEditor({
+  value,
+  readOnly,
+  onDirty,
+}: {
+  value: string;
+  readOnly: boolean;
+  onDirty: () => void;
+}) {
+  const editor = useRef<HTMLDivElement>(null);
+  const savedSelection = useRef<Range | null>(null);
+  const initialHtml = useRef(sanitizeRichText(value));
+  const [html, setHtml] = useState(() => sanitizeRichText(value));
+  const [removeHighlightMode, setRemoveHighlightMode] = useState(false);
+  const [activeColor, setActiveColor] = useState<string | null>(null);
+  const colors = [
+    ["#fff1b8", "노랑 하이라이트"],
+    ["#d9f3e6", "초록 하이라이트"],
+    ["#dceeff", "파랑 하이라이트"],
+    ["#f9d9e8", "분홍 하이라이트"],
+    ["#e8def8", "보라 하이라이트"],
+    ["#ffe0c2", "복숭아 하이라이트"],
+  ];
+  const emojis = ["😊", "👍", "⭐", "📌", "✅"];
+
+  function update() {
+    const next = sanitizeRichText(editor.current?.innerHTML ?? "");
+    setHtml(next);
+    onDirty();
+  }
+  function rememberSelection() {
+    const selection = window.getSelection();
+    if (
+      selection?.rangeCount &&
+      editor.current?.contains(selection.anchorNode)
+    ) {
+      savedSelection.current = selection.getRangeAt(0).cloneRange();
+    }
+  }
+  function restoreSelection() {
+    const selection = window.getSelection();
+    const range = savedSelection.current;
+    if (!selection || !range) return;
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+  function format(command: string, argument?: string) {
+    if (readOnly) return;
+    editor.current?.focus();
+    restoreSelection();
+    if (command === "hiliteColor" || command === "backColor") {
+      document.execCommand("styleWithCSS", false, "true");
+    }
+    document.execCommand(command, false, argument);
+    update();
+  }
+  function applyHighlight(color: string) {
+    const selection = window.getSelection();
+    if (!selection?.toString()) return;
+    setRemoveHighlightMode(false);
+    document.execCommand("styleWithCSS", false, "true");
+    document.execCommand("hiliteColor", false, color);
+    update();
+    setActiveColor(null);
+  }
+  function insertEmoji(emoji: string) {
+    if (readOnly) return;
+    editor.current?.focus();
+    restoreSelection();
+    document.execCommand("insertText", false, emoji);
+    update();
+  }
+  function removeSelectedHighlight() {
+    if (readOnly || !window.getSelection()?.toString()) return;
+    format("hiliteColor", "transparent");
+    setRemoveHighlightMode(false);
+  }
+
+  return (
+    <div className="journal-rich-editor">
+      {!readOnly && (
+        <div
+          className="journal-format-toolbar"
+          role="toolbar"
+          aria-label="내용 서식"
+        >
+          <div className="journal-highlight-tools">
+            <span className="text-xs text-muted-foreground">하이라이트</span>
+            {colors.map(([color, label]) => (
+              <button
+                key={color}
+                type="button"
+                aria-label={label}
+                aria-pressed={activeColor === color}
+                title={label}
+                className={`journal-color-button ${activeColor === color ? "is-selected" : ""}`}
+                style={{ backgroundColor: color }}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  rememberSelection();
+                }}
+                onClick={() => {
+                  setRemoveHighlightMode(false);
+                  setActiveColor(color);
+                }}
+              />
+            ))}
+            <button
+              type="button"
+              aria-label="하이라이트 제거"
+              title="하이라이트 제거 후 텍스트를 드래그하세요"
+              className={removeHighlightMode ? "is-active" : ""}
+              onMouseDown={(event) => {
+                event.preventDefault();
+                rememberSelection();
+              }}
+              onClick={() => {
+                if (window.getSelection()?.toString())
+                  removeSelectedHighlight();
+                else {
+                  setRemoveHighlightMode((active) => !active);
+                  setActiveColor(null);
+                }
+              }}
+            >
+              <Eraser size={16} />
+            </button>
+          </div>
+          <div className="journal-emoji-tools" aria-label="이모지 추가">
+            <span className="text-xs text-muted-foreground">이모지</span>
+            {emojis.map((emoji) => (
+              <button
+                key={emoji}
+                type="button"
+                aria-label={`${emoji} 삽입`}
+                title={`${emoji} 삽입`}
+                onMouseDown={(event) => {
+                  event.preventDefault();
+                  rememberSelection();
+                }}
+                onClick={() => insertEmoji(emoji)}
+              >
+                {emoji}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <div
+        ref={editor}
+        className="journal-rich-content"
+        contentEditable={!readOnly}
+        role="textbox"
+        aria-label="내용"
+        aria-multiline="true"
+        suppressContentEditableWarning
+        dangerouslySetInnerHTML={{ __html: initialHtml.current }}
+        onInput={update}
+        onMouseUp={() => {
+          rememberSelection();
+          if (removeHighlightMode) removeSelectedHighlight();
+          else if (activeColor) applyHighlight(activeColor);
+        }}
+      />
+      <input type="hidden" name="content" value={html} readOnly />
+    </div>
+  );
+}
+
+function StudentDetailsDialog({
+  student,
+  open,
+  onOpenChange,
+}: {
+  student: Student;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const details = [
+    ["성별", student.gender ?? "미등록"],
+    ["학적", student.student_status ?? "미등록"],
+    ["학교", student.school || "미등록"],
+    ["국어 선택과목", student.korean_subject || "미등록"],
+    ["수학 선택과목", student.math_subject || "미등록"],
+    ["탐구 1", student.inquiry_subject_1 || "미등록"],
+    ["탐구 2", student.inquiry_subject_2 || "미등록"],
+  ];
+  const counselingRequest =
+    student.counseling_requested === false ||
+    student.counseling_cycle_weeks === 0
+      ? "미희망"
+      : "희망";
+  const counselingCycle =
+    student.counseling_cycle_weeks === 0
+      ? "상담 없음"
+      : `${student.counseling_cycle_weeks}주`;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-h-[90dvh] overflow-y-auto p-6 sm:max-w-2xl sm:p-8">
+        <DialogHeader className="border-b border-[#e1e7ef] pb-5 text-left">
+          <DialogTitle className="text-sm font-bold text-[#426083]">
+            학생 상세 정보
+          </DialogTitle>
+          <DialogDescription className="mt-3 text-2xl font-bold tracking-tight text-[#17283f]">
+            {student.building}관 {student.seat_number} {student.name}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="divide-y divide-[#e1e7ef]">
+          <section
+            aria-labelledby="student-basic-info"
+            className="py-5 first:pt-0"
+          >
+            <h3
+              id="student-basic-info"
+              className="text-sm font-bold text-[#17283f]"
+            >
+              기본 정보
+            </h3>
+            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+              {[
+                ["성별", student.gender ?? "미등록"],
+                ["학적", student.student_status ?? "미등록"],
+                ["학교", student.school || "미등록"],
+                ["연락처", student.phone || "미등록"],
+              ].map(([label, value]) => (
+                <div
+                  key={label}
+                  className="grid grid-cols-[5.5rem_1fr] gap-3 text-sm"
+                >
+                  <dt className="text-muted-foreground">{label}</dt>
+                  <dd className="min-w-0 break-words font-medium text-[#17283f]">
+                    {label === "연락처" && (
+                      <Phone size={14} className="mr-2 inline text-[#426083]" />
+                    )}
+                    {value}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+          <section aria-labelledby="student-academic-info" className="py-5">
+            <h3
+              id="student-academic-info"
+              className="text-sm font-bold text-[#17283f]"
+            >
+              학업 정보
+            </h3>
+            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+              {details
+                .filter(
+                  ([label]) =>
+                    label !== "성별" && label !== "학적" && label !== "학교",
+                )
+                .map(([label, value]) => (
+                  <div
+                    key={label}
+                    className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm"
+                  >
+                    <dt className="text-muted-foreground">{label}</dt>
+                    <dd className="min-w-0 break-words font-medium text-[#17283f]">
+                      {value}
+                    </dd>
+                  </div>
+                ))}
+            </dl>
+          </section>
+          <section aria-labelledby="student-counseling-info" className="py-5">
+            <h3
+              id="student-counseling-info"
+              className="text-sm font-bold text-[#17283f]"
+            >
+              상담 정보
+            </h3>
+            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+              <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
+                <dt className="text-muted-foreground">상담 희망</dt>
+                <dd className="font-medium text-[#17283f]">
+                  {counselingRequest}
+                </dd>
+              </div>
+              <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
+                <dt className="text-muted-foreground">상담 주기</dt>
+                <dd className="font-medium text-[#17283f]">
+                  {counselingCycle}
+                </dd>
+              </div>
+            </dl>
+          </section>
+          <section
+            aria-labelledby="student-note-info"
+            className="py-5 last:pb-0"
+          >
+            <h3
+              id="student-note-info"
+              className="text-sm font-bold text-[#17283f]"
+            >
+              특이사항
+            </h3>
+            <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+              {student.special_notes || "등록된 특이사항이 없습니다."}
+            </p>
+          </section>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
 
 export function CounselingManagement({
   building,
@@ -130,6 +470,9 @@ export function CounselingManagement({
   const [editError, setEditError] = useState("");
   const [today, setToday] = useState(localDate());
   useEffect(() => {
+    if (building === "1" && seatFilter === "502") setSeatFilter("all");
+  }, [building, seatFilter]);
+  useEffect(() => {
     const refresh = () => setToday(localDate());
     const timer = window.setInterval(refresh, 60_000);
     window.addEventListener("focus", refresh);
@@ -205,13 +548,19 @@ export function CounselingManagement({
           numeric: true,
         }),
     );
+  const seatFilterOptions = [
+    { value: "all", label: "전체 좌석" },
+    ...(building === "1" ? [] : [{ value: "502", label: "502호" }]),
+    { value: "W", label: "W" },
+    { value: "M", label: "M" },
+  ];
   const counselorName = member?.name ?? "홀로서기";
   async function save(form: HTMLFormElement) {
     if (!student || lock.current) return;
     const data = new FormData(form);
     const date = String(data.get("date"));
     const content = String(data.get("content")).trim();
-    if (!content) {
+    if (!plainTextFromRichText(content).trim()) {
       setSaveError("상담 내용을 입력해 주세요.");
       return;
     }
@@ -290,7 +639,7 @@ export function CounselingManagement({
     const date = String(data.get("date"));
     const content = String(data.get("content")).trim();
     const specialNotes = String(data.get("special_notes")).trim();
-    if (!content) {
+    if (!plainTextFromRichText(content).trim()) {
       setEditError("상담 내용을 입력해 주세요.");
       return;
     }
@@ -369,7 +718,9 @@ export function CounselingManagement({
               {writing ? "상담일지 작성" : "상담 리스트"}
             </PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
-              {writing ? "상담일지를 작성할 학생을 선택해 주세요." : "학생들의 상담 현황을 체크할 수 있습니다."}
+              {writing
+                ? "상담일지를 작성할 학생을 선택해 주세요."
+                : "학생들의 상담 현황을 체크할 수 있습니다."}
             </p>
           </div>
         </div>
@@ -399,10 +750,11 @@ export function CounselingManagement({
               onChange={(e) => setSeatFilter(e.target.value)}
               className="h-10 rounded-md border border-input bg-background px-3 text-sm"
             >
-              <option value="all">전체 좌석</option>
-              <option value="502">502호</option>
-              <option value="W">W</option>
-              <option value="M">M</option>
+              {seatFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </div>
           <div
@@ -431,7 +783,6 @@ export function CounselingManagement({
               <tr>
                 <th>좌석번호</th>
                 <th>이름</th>
-                <th>횟수</th>
                 <th>마지막 상담</th>
                 <th>마지막 문자 전송</th>
                 <th>상담 주기</th>
@@ -474,16 +825,12 @@ export function CounselingManagement({
                         }}
                       >
                         {row.name}
+                        <span className="ml-2 text-sm font-semibold tabular-nums text-[#426083]">
+                          {latest.find((item) => item.student_id === row.id)
+                            ?.journal_count ?? 0}
+                          건
+                        </span>
                       </a>
-                    </td>
-                    <td>
-                      <span className="font-semibold tabular-nums text-[#426083]">
-                        {latest.find((item) => item.student_id === row.id)
-                          ?.journal_count ?? 0}
-                      </span>
-                      <span className="ml-1 text-xs text-muted-foreground">
-                        회
-                      </span>
                     </td>
                     <td className="whitespace-nowrap">
                       {latestDates.get(row.id)?.replaceAll("-", ".") ?? "—"}
@@ -538,6 +885,11 @@ export function CounselingManagement({
   if ((writing || selectedJournal) && student)
     return (
       <>
+        <StudentDetailsDialog
+          student={student}
+          open={studentDetailsOpen}
+          onOpenChange={setStudentDetailsOpen}
+        />
         <form
           aria-label={
             readOnly
@@ -567,6 +919,15 @@ export function CounselingManagement({
               )}
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={saving}
+                onClick={() => setStudentDetailsOpen(true)}
+              >
+                <Eye size={16} />
+                학생정보
+              </Button>
               <Button
                 type="button"
                 variant="outline"
@@ -625,20 +986,15 @@ export function CounselingManagement({
                 />
               </label>
             </div>
-            <label className="field">
+            <div className="field">
               <span className="font-bold">내용</span>
-              <textarea
-                name="content"
+              <RichJournalEditor
+                key={selectedJournal?.id ?? `new-${student.id}`}
+                value={selectedJournal?.content ?? ""}
                 readOnly={readOnly}
-                defaultValue={selectedJournal?.content ?? ""}
-                required
-                maxLength={10000}
-                rows={18}
-                spellCheck={false}
-                autoCorrect="off"
-                className="journal-textarea min-h-[420px] resize-y leading-8"
+                onDirty={() => onDirtyChange(true)}
               />
-            </label>
+            </div>
             <label className="field">
               <span className="font-bold">
                 특이사항{" "}
@@ -771,79 +1127,29 @@ export function CounselingManagement({
     );
   return (
     <>
-      <Dialog open={studentDetailsOpen} onOpenChange={setStudentDetailsOpen}>
-        <DialogContent className="max-h-[90dvh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>학생 상세정보</DialogTitle>
-            <DialogDescription>
-              {student!.seat_number} {student!.name}
-            </DialogDescription>
-          </DialogHeader>
-          <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-4 text-sm">
-            {[
-              ["이름", student!.name],
-              ["좌석", student!.seat_number],
-              ["관", `${student!.building}관`],
-              ["성별", student!.gender ?? "미등록"],
-              ["학적", student!.student_status ?? "미등록"],
-              ["학교", student!.school || "미등록"],
-              ["국어 선택과목", student!.korean_subject || "미등록"],
-              ["수학 선택과목", student!.math_subject || "미등록"],
-              ["탐구 1", student!.inquiry_subject_1 || "미등록"],
-              ["탐구 2", student!.inquiry_subject_2 || "미등록"],
-              ["특이사항", student!.special_notes || "미등록"],
-              ["연락처", student!.phone || "미등록"],
-              [
-                "상담 희망 여부",
-                student!.counseling_requested === false ||
-                student!.counseling_cycle_weeks === 0
-                  ? "미희망"
-                  : "희망",
-              ],
-              [
-                "상담주기",
-                student!.counseling_cycle_weeks === 0
-                  ? "상담 없음"
-                  : `${student!.counseling_cycle_weeks}주`,
-              ],
-            ].map(([label, value]) => (
-              <div key={label} className="contents">
-                <dt className="text-muted-foreground">{label}</dt>
-                <dd className="min-w-0 whitespace-pre-wrap break-words font-medium">
-                  {value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </DialogContent>
-      </Dialog>
+      <StudentDetailsDialog
+        student={student!}
+        open={studentDetailsOpen}
+        onOpenChange={setStudentDetailsOpen}
+      />
       <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap gap-3 justify-between items-center">
           <div className="flex min-w-0 items-center gap-3">
             <PageHeading as="h2" emoji="📚">
               {student!.seat_number} {student!.name}
             </PageHeading>
-            <TooltipProvider>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="shrink-0"
-                    aria-label={`${student!.name} 학생 상세정보`}
-                    onClick={() => setStudentDetailsOpen(true)}
-                  >
-                    <Eye size={20} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>학생 정보보기</TooltipContent>
-              </Tooltip>
-            </TooltipProvider>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-sm font-normal text-muted-foreground">
               {journals.length}건
             </span>
+            <Button
+              variant="outline"
+              onClick={() => setStudentDetailsOpen(true)}
+            >
+              <Eye size={16} />
+              학생정보
+            </Button>
             <Button
               onClick={() => {
                 setSaveError("");

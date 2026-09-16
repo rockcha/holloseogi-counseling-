@@ -5,7 +5,9 @@ export const activityActions = [
   "학생 수정",
   "학생 삭제",
   "상담 완료",
+  "상담일지 수정",
   "상담 삭제",
+  "상담일지 삭제",
   "전달 내용 등록",
 ] as const;
 export type ActivityLog = {

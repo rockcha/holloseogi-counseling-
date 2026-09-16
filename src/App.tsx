@@ -23,7 +23,6 @@ import {
   ChevronRight,
   Clock3,
   Armchair,
-  StickyNote,
   Lightbulb,
   LogOut,
   Menu,
@@ -433,26 +432,29 @@ export default function App() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-      {page !== "건의함" &&
-        page !== "시간표" &&
-        page !== "메모장" &&
-        page !== "할 일" && (
-          <div
-            className="building-filter"
-            role="group"
-            aria-label="공통 관 선택"
-          >
-            {["전체", "1", "2"].map((value) => (
-              <button
-                key={value}
-                aria-pressed={building === value}
-                onClick={() => changeBuilding(value)}
-              >
-                {value === "전체" ? value : `${value}관`}
-              </button>
-            ))}
-          </div>
-        )}
+      <div className="floating-actions">
+        <FloatingMemo container={memoContainer} onDirtyChange={setMemoDirty} />
+        {page !== "건의함" &&
+          page !== "시간표" &&
+          page !== "메모장" &&
+          page !== "할 일" && (
+            <div
+              className="building-filter"
+              role="group"
+              aria-label="공통 관 선택"
+            >
+              {["전체", "1", "2"].map((value) => (
+                <button
+                  key={value}
+                  aria-pressed={building === value}
+                  onClick={() => changeBuilding(value)}
+                >
+                  {value === "전체" ? value : `${value}관`}
+                </button>
+              ))}
+            </div>
+          )}
+      </div>
       {mobile && (
         <button
           aria-label="메뉴 닫기"
@@ -583,20 +585,6 @@ export default function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  className={`nav-item ${page === "메모장" ? "active" : ""}`}
-                  onClick={() => navigate("메모장")}
-                >
-                  <StickyNote size={18} />
-                  메모장
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {pageHints["메모장"]}
-              </TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
                   className={`nav-item ${page === "할 일" ? "active" : ""}`}
                   onClick={() => navigate("할 일")}
                 >
@@ -666,10 +654,6 @@ export default function App() {
             <div className="flex items-center gap-1">
               <WeatherDialog />
               <PersonalTodos container={todoContainer} />
-              <FloatingMemo
-                container={memoContainer}
-                onDirtyChange={setMemoDirty}
-              />
               <IconTooltip label="알림">
                 <button
                   className="memo-launcher"
@@ -865,7 +849,11 @@ export default function App() {
               mode="suggestion"
             />
           ) : page === "내 상담실" ? (
-            <Dashboard building={building} onNavigate={navigateCounseling} />
+            <Dashboard
+              building={building}
+              onNavigate={navigateCounseling}
+              onMemoContainer={setMemoContainer}
+            />
           ) : page === "상담 관리" && path === "/counseling/statistics" ? (
             <CounselingStatistics building={building} />
           ) : page === "상담 관리" ? (
