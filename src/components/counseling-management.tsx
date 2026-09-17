@@ -1070,7 +1070,7 @@ export function CounselingManagement({
         <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-4">
           <div>
             <PageHeading as="h2" emoji="👩‍🏫">
-              선생님별 상담 리스트
+              나의 상담내역
             </PageHeading>
             <p className="mt-1 text-xs text-muted-foreground">
               선생님을 선택하면 해당 선생님이 작성한 상담 기록을 확인할 수

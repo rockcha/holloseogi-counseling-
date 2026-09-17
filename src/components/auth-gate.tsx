@@ -11,7 +11,12 @@ import { BrandLogo } from "@/components/brand-logo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
-type Profile = { id: string; name: string; is_teacher: boolean };
+type Profile = {
+  id: string;
+  name: string;
+  is_teacher: boolean;
+  is_admin: boolean;
+};
 export const MemberProfileContext = createContext<Profile | null>(null);
 export function AuthGate({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -66,7 +71,7 @@ export function AuthGate({ children }: { children: ReactNode }) {
     Promise.resolve(
       supabase
         .from("profiles")
-        .select("id,name,is_teacher")
+        .select("id,name,is_teacher,is_admin")
         .eq("id", userId)
         .single(),
     )
@@ -111,14 +116,20 @@ export function AuthGate({ children }: { children: ReactNode }) {
     );
   if (loading)
     return (
-      <p className="p-10 text-center" role="status">
+      <p
+        className="min-h-screen grid place-items-center p-10 text-center"
+        role="status"
+      >
         로그인 정보를 확인하고 있습니다…
       </p>
     );
   if (session) {
     if (profileLoading)
       return (
-        <p className="p-10 text-center" role="status">
+        <p
+          className="min-h-screen grid place-items-center p-10 text-center"
+          role="status"
+        >
           회원 정보를 확인하고 있습니다…
         </p>
       );
@@ -212,7 +223,9 @@ export function AuthGate({ children }: { children: ReactNode }) {
                         ? "이미 가입된 이메일입니다. 로그인해 주세요."
                         : error.code === "weak_password"
                           ? "비밀번호가 보안 조건을 충족하지 않습니다. 다른 비밀번호를 사용해 주세요."
-                          : "가입하지 못했습니다. 잠시 후 다시 시도해 주세요. (" + (error.code || "unknown_error") + ")",
+                          : "가입하지 못했습니다. 잠시 후 다시 시도해 주세요. (" +
+                            (error.code || "unknown_error") +
+                            ")",
                     );
                   else if (!data.session) {
                     setError(

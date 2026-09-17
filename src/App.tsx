@@ -505,7 +505,7 @@ export default function App() {
                         ]
                       : [
                           ["학생별 상담 리스트", "/counseling"],
-                          ["선생님별 상담 리스트", "/counseling/teachers"],
+                          ["나의 상담내역", "/counseling/teachers"],
                           ["통계", "/counseling/statistics"],
                         ]
                     ).map(([label, destination]) => {
@@ -646,7 +646,7 @@ export default function App() {
                   {path.endsWith("/statistics")
                     ? "통계"
                     : path === "/counseling/teachers"
-                      ? "선생님별 상담 리스트"
+                      ? "나의 상담내역"
                       : path === "/students/seating"
                         ? "배치도"
                         : page === "학생 관리"

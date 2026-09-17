@@ -597,7 +597,7 @@ export function StudentManagement({
             )}
 
             <div className="flex gap-2 justify-end">
-              {selected && (
+              {selected && member?.is_admin && (
                 <Button
                   type="button"
                   variant="destructive"
