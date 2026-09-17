@@ -311,6 +311,16 @@ textarea {
 .room-502 .seating-entrance {
   right: 100px;
 }
+.room-2 .seating-entrance {
+  right: 0;
+}
+.room-1 .seating-desk,
+.room-2 .seating-desk {
+  width: 86px;
+  height: 46px;
+  padding: 4px 6px;
+  gap: 2px;
+}
 .seating-room-title,
 .seating-entrance,
 .seating-desk {

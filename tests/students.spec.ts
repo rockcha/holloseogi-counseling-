@@ -98,3 +98,37 @@ test("학생 추가, 좌석 중복 확인, 수정, 새로고침 유지 및 삭�
   await page.getByRole("button", { name: "학생 관리", exact: true }).click();
   await expect(page.locator("tbody tr")).toHaveCount(0);
 });
+
+test("1관 배치도는 사진 기준 M01부터 M38까지 표시한다", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("holoseogi-building", "1");
+    localStorage.setItem(
+      "holoseogi-students",
+      JSON.stringify([
+        {
+          id: "building-one-student",
+          name: "1관 학생",
+          building: 1,
+          seat_number: "M01",
+          counseling_cycle_weeks: 1,
+        },
+      ]),
+    );
+  });
+  await page.goto("/students/seating");
+
+  await expect(
+    page.getByRole("region", { name: "1호실 좌석 배치도" }),
+  ).toBeVisible();
+  await expect(page.getByText("전체 38석", { exact: false })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^M01 / })).toContainText(
+    "1관 학생",
+  );
+  await expect(page.getByRole("button", { name: /^M38 / })).toBeVisible();
+  await page.getByRole("combobox", { name: "자습실 선택" }).selectOption("2");
+  await expect(
+    page.getByRole("region", { name: "2호 좌석 배치도" }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: /^W01 / })).toBeVisible();
+  await expect(page.getByRole("button", { name: /^W39 / })).toBeVisible();
+});

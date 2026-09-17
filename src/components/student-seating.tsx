@@ -1,11 +1,11 @@
 import { useState } from "react";
-import { DoorOpen, LayoutGrid } from "lucide-react";
+import { DoorOpen } from "lucide-react";
 import type { Student } from "@/lib/students";
 import { PageHeading } from "./ui/page-heading";
 import { Button } from "./ui/button";
 
 type Seat = { number: number; x: number; y: number };
-type Room = "502" | "503" | "504";
+type Room = "1" | "2" | "502" | "503" | "504";
 type RoomLayout = {
   width: number;
   height: number;
@@ -20,7 +20,54 @@ const column = (
   step: number,
 ): Seat[] =>
   numbers.map((number, index) => ({ number, x, y: start + index * step }));
+const row = (numbers: number[], x: number, y: number, step: number): Seat[] =>
+  numbers.map((number, index) => ({ number, x: x + index * step, y }));
 const layouts: Record<Room, RoomLayout> = {
+  "1": {
+    width: 1040,
+    height: 760,
+    building: 1,
+    plan: [
+      "M28 112 H210 V74 H270 V112 H470 V176 H560 V122 H650 V182 H748 V112 H1010 V710 H28 Z",
+      "M28 112 V710 M210 112 V710 M470 112 V710 M560 112 V710 M650 112 V710 M748 112 V710 M1010 112 V710",
+      "M28 196 H210 M28 244 H210 M28 292 H210 M28 340 H210 M28 388 H210 M28 436 H210 M28 484 H210 M28 532 H210",
+      "M210 520 H470 M210 604 H470 M470 280 H560 M470 400 H560 M470 520 H560 M650 280 H748 M650 400 H748 M650 520 H748",
+      "M748 220 H1010 M748 340 H1010 M748 460 H1010 M748 580 H1010",
+    ],
+    seats: [
+      ...row([38], 120, 72, 1),
+      ...row([1, 2, 3], 220, 120, 100),
+      ...column([4, 5, 6, 7, 8, 9, 10, 11], 20, 180, 52),
+      ...row([12, 13, 14, 15, 16, 17], 220, 650, 88),
+      ...column([25, 24, 23, 22, 21, 20, 19, 18], 760, 180, 52),
+      ...row([26, 27, 28, 29, 30], 220, 300, 100),
+      ...row([31, 32, 33, 34, 35], 220, 430, 100),
+      ...row([37, 36], 420, 190, 100),
+    ],
+  },
+  "2": {
+    width: 1040,
+    height: 760,
+    building: 1,
+    plan: [
+      "M28 112 H210 V74 H270 V112 H470 V176 H560 V122 H650 V182 H748 V112 H1010 V710 H28 Z",
+      "M28 112 V710 M210 112 V710 M470 112 V710 M560 112 V710 M650 112 V710 M748 112 V710 M1010 112 V710",
+      "M28 220 H210 M28 340 H210 M28 460 H210 M28 580 H210",
+      "M210 540 H470 M210 660 H470 M470 280 H560 M470 420 H560 M650 280 H748 M650 420 H748",
+      "M748 220 H1010 M748 340 H1010 M748 460 H1010 M748 580 H1010",
+    ],
+    seats: [
+      ...column([5, 6, 7, 8, 9, 10, 11, 12], 40, 180, 52),
+      ...row([1, 2, 3, 4], 540, 120, 90),
+      ...row([28, 29], 250, 220, 100),
+      ...row([31, 30], 250, 340, 100),
+      ...row([32, 33], 250, 460, 100),
+      ...row([34, 35, 36], 540, 260, 90),
+      ...row([39, 38, 37], 540, 420, 90),
+      ...column([26, 25, 24, 23, 22, 21, 20], 900, 240, 52),
+      ...row([13, 14, 15, 16, 17, 18, 19], 250, 650, 88),
+    ],
+  },
   "502": {
     width: 580,
     height: 760,
@@ -83,7 +130,7 @@ const layouts: Record<Room, RoomLayout> = {
 export function seatNumber(room: Room, number: number) {
   return room === "502"
     ? `502-${number}`
-    : `${room === "503" ? "W" : "M"}${String(number).padStart(2, "0")}`;
+    : `${room === "2" || room === "503" ? "W" : "M"}${String(number).padStart(2, "0")}`;
 }
 function normalizedSeat(value: string) {
   return value
@@ -123,7 +170,14 @@ export function StudentSeating({
 }) {
   const [room, setRoom] = useState<Room>("502");
   const selectedBuilding = building === "전체" ? "2" : building;
-  const activeRoom = room;
+  const activeRoom =
+    selectedBuilding === "1"
+      ? room === "1" || room === "2"
+        ? room
+        : "1"
+      : room === "502" || room === "503" || room === "504"
+        ? room
+        : "502";
   const layout = layouts[activeRoom];
   const occupants = new Map(
     students
@@ -144,7 +198,19 @@ export function StudentSeating({
           </p>
         </div>
         <div className="flex gap-2">
-          {selectedBuilding === "2" && (
+          {selectedBuilding === "1" ? (
+            <label className="seating-select-label">
+              자습실
+              <select
+                aria-label="자습실 선택"
+                value={activeRoom}
+                onChange={(event) => setRoom(event.target.value as Room)}
+              >
+                <option value="1">1호실 · M</option>
+                <option value="2">2호실 · W</option>
+              </select>
+            </label>
+          ) : (
             <label className="seating-select-label">
               강의실
               <select
@@ -160,13 +226,7 @@ export function StudentSeating({
           )}
         </div>
       </div>
-      {selectedBuilding === "1" ? (
-        <div className="seating-preparing">
-          <LayoutGrid size={36} aria-hidden="true" />
-          <h2>1관 배치도 준비 중</h2>
-          <p>배치도를 준비하고 있습니다.</p>
-        </div>
-      ) : loading ? (
+      {loading ? (
         <p
           role="status"
           className="py-16 text-center text-sm text-muted-foreground"
@@ -227,7 +287,7 @@ export function StudentSeating({
                 <span>{layout.building}관</span>
                 <strong>
                   {activeRoom}
-                  <small>호</small>
+                  <small>{activeRoom === "1" ? "호실" : "호"}</small>
                 </strong>
               </div>
               <div className="seating-entrance">
