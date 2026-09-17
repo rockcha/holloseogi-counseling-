@@ -63,6 +63,26 @@ async function dashboardQuery<T>(label: string, query: Promise<T>): Promise<T> {
   }
 }
 
+function plainTextFromJournal(value: string) {
+  if (!value.includes("<")) return value.trim();
+  const documentFragment = new DOMParser().parseFromString(value, "text/html");
+  const blockTags = new Set(["DIV", "P", "LI"]);
+  function readNode(node: Node): string {
+    if (node.nodeType === Node.TEXT_NODE) return node.textContent ?? "";
+    if (node.nodeType !== Node.ELEMENT_NODE) return "";
+    const element = node as HTMLElement;
+    if (element.tagName === "BR") return "\n";
+    const text = Array.from(element.childNodes).map(readNode).join("");
+    return blockTags.has(element.tagName) && text && !text.endsWith("\n")
+      ? `${text}\n`
+      : text;
+  }
+  return Array.from(documentFragment.body.childNodes)
+    .map(readNode)
+    .join("")
+    .trim();
+}
+
 function StudentCard({
   student,
   detail,
@@ -329,9 +349,6 @@ export function Dashboard({
   const completedMessageCount = completed.filter(
     (student) => messageDates.get(student.id) === today,
   ).length;
-  const messageProgress = completed.length
-    ? Math.round((completedMessageCount / completed.length) * 100)
-    : 0;
   async function markAllTodayMessages() {
     if (
       markingMessages ||
@@ -356,7 +373,7 @@ export function Dashboard({
           last_sent_date: today,
         })),
       ]);
-      toast.success("오늘 상담한 학생의 문자 전송을 모두 체크했습니다.");
+      toast.success("상담한 학생 문자전송을 일괄 체크했습니다.");
     } catch {
       toast.error("문자 전송 체크를 저장하지 못했습니다.");
     } finally {
@@ -403,7 +420,7 @@ export function Dashboard({
           ),
         )) {
           lines.push(`${student.seat_number} ${student.name}`);
-          lines.push(`~${journal.content.trim()}`);
+          lines.push(`~${plainTextFromJournal(journal.content)}`);
           lines.push("");
         }
       }
@@ -666,76 +683,49 @@ export function Dashboard({
           </div>
           <div
             className="mt-5 border-t border-[#dce6f2] pt-4"
-            aria-label="문자 전송 진행도"
+            aria-label="오늘 상담한 학생 작업"
           >
-            <div className="grid grid-cols-[minmax(0,1fr)_auto] items-end gap-4">
-              <div className="min-w-0">
-                <div className="mb-2 flex items-center justify-between gap-3 text-xs">
-                  <span className="font-bold text-[#426083]">
-                    문자 전송 진행도
-                  </span>
-                  <span className="font-bold tabular-nums text-[#426083]">
-                    {completedMessageCount}/{completed.length}
-                  </span>
-                </div>
-                <div
-                  className="h-2 overflow-hidden rounded-full bg-[#e4ebf3]"
-                  role="progressbar"
-                  aria-label="부모님 문자 전송 진행률"
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                  aria-valuenow={messageProgress}
-                >
-                  <div
-                    className="h-full rounded-full bg-[#426083] transition-[width]"
-                    style={{ width: `${messageProgress}%` }}
-                  />
-                </div>
-              </div>
-              <div className="flex items-center gap-1">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="오늘 상담한 학생 문자 전송 모두 체크"
-                        disabled={
-                          markingMessages ||
-                          !completed.length ||
-                          completedMessageCount === completed.length
-                        }
-                        onClick={() => void markAllTodayMessages()}
-                        className="size-11 text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
-                      >
-                        <MessageSquare size={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      오늘 상담한 학생 문자 전송 모두 체크
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon"
-                        aria-label="오늘 상담일지 복사"
-                        disabled={copying || !completed.length}
-                        onClick={() => void copyTodayJournals()}
-                        className="size-11 text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
-                      >
-                        <Copy size={20} />
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>오늘의 상담 일지 복사</TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="문자 전송 체크"
+                      disabled={
+                        markingMessages ||
+                        !completed.length ||
+                        completedMessageCount === completed.length
+                      }
+                      onClick={() => void markAllTodayMessages()}
+                      className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                    >
+                      <MessageSquare size={20} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>일괄 체크</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
+              <TooltipProvider>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="icon"
+                      aria-label="상담일지 일괄 복사"
+                      disabled={copying || !completed.length}
+                      onClick={() => void copyTodayJournals()}
+                      className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                    >
+                      <Copy size={20} aria-hidden="true" />
+                    </Button>
+                  </TooltipTrigger>
+                  <TooltipContent>상담일지 일괄 복사</TooltipContent>
+                </Tooltip>
+              </TooltipProvider>
             </div>
           </div>
         </section>

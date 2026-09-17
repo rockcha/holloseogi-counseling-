@@ -125,10 +125,36 @@ test("1관 배치도는 사진 기준 M01부터 M38까지 표시한다", async (
     "1관 학생",
   );
   await expect(page.getByRole("button", { name: /^M38 / })).toBeVisible();
-  await page.getByRole("combobox", { name: "자습실 선택" }).selectOption("2");
+  await page
+    .getByRole("combobox", { name: "1관 자습실 선택" })
+    .selectOption("2");
   await expect(
     page.getByRole("region", { name: "2호 좌석 배치도" }),
   ).toBeVisible();
   await expect(page.getByRole("button", { name: /^W01 / })).toBeVisible();
   await expect(page.getByRole("button", { name: /^W39 / })).toBeVisible();
+});
+
+test("전체 배치도에서는 1관과 2관 선택기를 함께 표시한다", async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem("holoseogi-building", "전체");
+  });
+  await page.goto("/students/seating");
+
+  const buildingOneSelect = page.getByRole("combobox", {
+    name: "1관 자습실 선택",
+  });
+  const buildingTwoSelect = page.getByRole("combobox", {
+    name: "2관 강의실 선택",
+  });
+  await expect(buildingOneSelect).toBeVisible();
+  await expect(buildingTwoSelect).toBeVisible();
+  await buildingOneSelect.selectOption("2");
+  await expect(
+    page.getByRole("region", { name: "2호 좌석 배치도" }),
+  ).toBeVisible();
+  await buildingTwoSelect.selectOption("503");
+  await expect(
+    page.getByRole("region", { name: "503호 좌석 배치도" }),
+  ).toBeVisible();
 });

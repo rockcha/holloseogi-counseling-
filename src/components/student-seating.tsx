@@ -169,15 +169,17 @@ export function StudentSeating({
   onSelect: (student: Student | null, seat: string) => void;
 }) {
   const [room, setRoom] = useState<Room>("502");
-  const selectedBuilding = building === "전체" ? "2" : building;
+  const selectedBuilding = building;
   const activeRoom =
     selectedBuilding === "1"
       ? room === "1" || room === "2"
         ? room
         : "1"
-      : room === "502" || room === "503" || room === "504"
-        ? room
-        : "502";
+      : selectedBuilding === "2"
+        ? room === "502" || room === "503" || room === "504"
+          ? room
+          : "502"
+        : room;
   const layout = layouts[activeRoom];
   const occupants = new Map(
     students
@@ -197,25 +199,30 @@ export function StudentSeating({
             학생이 있는 좌석은 정보 수정, 빈 좌석은 학생 추가가 가능합니다.
           </p>
         </div>
-        <div className="flex gap-2">
-          {selectedBuilding === "1" ? (
+        <div className="flex flex-wrap gap-2">
+          {selectedBuilding !== "2" && (
             <label className="seating-select-label">
-              자습실
+              1관 자습실
               <select
-                aria-label="자습실 선택"
-                value={activeRoom}
+                aria-label="1관 자습실 선택"
+                value={room === "1" || room === "2" ? room : "1"}
                 onChange={(event) => setRoom(event.target.value as Room)}
               >
                 <option value="1">1호실 · M</option>
                 <option value="2">2호실 · W</option>
               </select>
             </label>
-          ) : (
+          )}
+          {selectedBuilding !== "1" && (
             <label className="seating-select-label">
-              강의실
+              2관 강의실
               <select
-                aria-label="강의실 선택"
-                value={activeRoom}
+                aria-label="2관 강의실 선택"
+                value={
+                  room === "502" || room === "503" || room === "504"
+                    ? room
+                    : "502"
+                }
                 onChange={(event) => setRoom(event.target.value as Room)}
               >
                 <option value="502">502호</option>

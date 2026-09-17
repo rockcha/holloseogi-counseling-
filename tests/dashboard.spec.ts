@@ -147,11 +147,6 @@ test("대시보드 예정 추가, 학생 기록 이동, 오늘 상담 자동 집
   for (const content of ["첫 번째 상담", "추가 상담"]) {
     await page.getByRole("button", { name: "상담일지 작성" }).click();
     await page.getByLabel("내용", { exact: true }).fill(content);
-    if (content === "첫 번째 상담") {
-      await page
-        .getByRole("checkbox", { name: "부모님 문자 전송 완료" })
-        .check();
-    }
     await page.getByRole("button", { name: "상담일지 저장" }).first().click();
     await expect(page.getByRole("form", { name: "상담일지 작성" })).toHaveCount(
       0,
@@ -164,6 +159,17 @@ test("대시보드 예정 추가, 학생 기록 이동, 오늘 상담 자동 집
     page.getByRole("button", { name: "상담할 학생 추가" }),
   ).toBeDisabled();
   await expect(planned.getByRole("link")).toHaveCount(0);
+  await expect(
+    done.getByRole("button", { name: "문자 전송 체크" }),
+  ).toBeVisible();
+  await expect(
+    done.getByRole("button", { name: "상담일지 일괄 복사" }),
+  ).toBeVisible();
+  await expect(done.getByLabel("문자 전송 진행도")).toHaveCount(0);
+  await done.getByRole("button", { name: "문자 전송 체크" }).click();
+  await expect(
+    page.getByText("상담한 학생 문자전송을 일괄 체크했습니다."),
+  ).toBeVisible();
   await page.getByRole("button", { name: "1관", exact: true }).click();
   await expect(done.getByRole("link")).toHaveCount(0);
   await page.getByRole("button", { name: "2관", exact: true }).click();
@@ -193,7 +199,6 @@ test("대시보드 예정 추가, 학생 기록 이동, 오늘 상담 자동 집
     page.getByRole("button", { name: "2관", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(done.getByRole("link")).toHaveCount(1);
-  await expect(done).toContainText("1/1");
   await page.setViewportSize({ width: 390, height: 844 });
   expect(
     await page.evaluate(
