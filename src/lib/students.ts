@@ -8,6 +8,7 @@ export type Student = {
   gender: "남" | "여" | null;
   seat_number: string;
   student_status: "재학생" | "재수생" | "N수생" | "자퇴생" | "공시생" | null;
+  grade?: "예비고1" | "고1" | "고2" | "고3" | "n수" | null;
   phone: string | null;
   school?: string | null;
   korean_subject?: string | null;
@@ -27,7 +28,7 @@ export type Student = {
 };
 const key = "holoseogi-students";
 const columns =
-  "id,name,building,gender,seat_number,student_status,phone,counseling_cycle_weeks,counseling_requested,source_sheet,school,korean_subject,math_subject,inquiry_subject_1,inquiry_subject_2,special_notes";
+  "id,name,building,gender,seat_number,student_status,grade,phone,counseling_cycle_weeks,counseling_requested,source_sheet,school,korean_subject,math_subject,inquiry_subject_1,inquiry_subject_2,special_notes";
 export async function fetchStudents(): Promise<Student[]> {
   if (!supabase)
     return JSON.parse(localStorage.getItem(key) ?? "[]").map(
@@ -50,7 +51,10 @@ export async function fetchStudents(): Promise<Student[]> {
     .order("building")
     .order("seat_number");
   if (error) throw error;
-  return data.map((row) => ({ ...row, seat_number: row.seat_number ?? "" })) as Student[];
+  return data.map((row) => ({
+    ...row,
+    seat_number: row.seat_number ?? "",
+  })) as Student[];
 }
 export async function saveStudent(
   student: Student,

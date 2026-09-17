@@ -1,7 +1,16 @@
 import { PageHeading } from "./ui/page-heading";
 import { CounselingSkeleton } from "./ui/skeleton";
 import { useContext, useEffect, useRef, useState } from "react";
-import { Eraser, Save, BookOpen, Eye, Plus, Search, Phone } from "lucide-react";
+import {
+  Eraser,
+  Save,
+  BookOpen,
+  Eye,
+  Plus,
+  Search,
+  Phone,
+  Pencil,
+} from "lucide-react";
 
 import {
   AlertDialog,
@@ -16,6 +25,13 @@ import {
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "./ui/select";
+import {
   Dialog,
   DialogContent,
   DialogDescription,
@@ -24,7 +40,7 @@ import {
 } from "./ui/dialog";
 
 import { MemberProfileContext } from "./auth-gate";
-import { fetchStudents, type Student } from "@/lib/students";
+import { fetchStudents, saveStudent, type Student } from "@/lib/students";
 import {
   counselingStatus,
   createJournal,
@@ -256,14 +272,27 @@ function StudentDetailsDialog({
   student,
   open,
   onOpenChange,
+  onSaved,
 }: {
   student: Student;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSaved?: (student: Student) => void;
 }) {
+  const [editing, setEditing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const lock = useRef(false);
+  useEffect(() => {
+    if (!open) {
+      setEditing(false);
+      setError("");
+    }
+  }, [open]);
   const details = [
     ["성별", student.gender ?? "미등록"],
     ["학적", student.student_status ?? "미등록"],
+    ["학년", student.grade ?? "미등록"],
     ["학교", student.school || "미등록"],
     ["국어 선택과목", student.korean_subject || "미등록"],
     ["수학 선택과목", student.math_subject || "미등록"],
@@ -280,113 +309,410 @@ function StudentDetailsDialog({
       ? "상담 없음"
       : `${student.counseling_cycle_weeks}주`;
 
+  async function save(form: HTMLFormElement) {
+    if (lock.current) return;
+    const data = new FormData(form);
+    const name = String(data.get("name")).trim();
+    if (!name) {
+      setError("학생 이름을 입력해 주세요.");
+      return;
+    }
+    lock.current = true;
+    setBusy(true);
+    setError("");
+    try {
+      const saved = await saveStudent(
+        {
+          ...student,
+          name,
+          student_status: (data.get("student_status") === "unset"
+            ? null
+            : data.get("student_status")) as Student["student_status"],
+          grade: (data.get("grade") === "unset"
+            ? null
+            : data.get("grade")) as Student["grade"],
+          gender: (data.get("gender") === "unset"
+            ? null
+            : data.get("gender")) as Student["gender"],
+          phone: String(data.get("phone")).trim() || null,
+          school: String(data.get("school") ?? "").trim() || null,
+          korean_subject:
+            String(data.get("korean_subject") ?? "").trim() || null,
+          math_subject: String(data.get("math_subject") ?? "").trim() || null,
+          inquiry_subject_1:
+            String(data.get("inquiry_subject_1") ?? "").trim() || null,
+          inquiry_subject_2:
+            String(data.get("inquiry_subject_2") ?? "").trim() || null,
+          special_notes: String(data.get("special_notes") ?? "").trim() || null,
+          counseling_cycle_weeks: Number(data.get("cycle")),
+          counseling_requested: data.get("counseling_requested") === "yes",
+        },
+        true,
+      );
+      onSaved?.(saved);
+      toast.success("학생 정보를 저장했습니다.");
+      setEditing(false);
+    } catch (cause) {
+      setError(
+        cause instanceof Error
+          ? cause.message
+          : "저장하지 못했습니다. 다시 시도해 주세요.",
+      );
+    } finally {
+      lock.current = false;
+      setBusy(false);
+    }
+  }
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog
+      open={open}
+      onOpenChange={(value) => {
+        if (!busy) onOpenChange(value);
+      }}
+    >
       <DialogContent className="max-h-[90dvh] overflow-y-auto p-6 sm:max-w-2xl sm:p-8">
         <DialogHeader className="border-b border-[#e1e7ef] pb-5 text-left">
-          <DialogTitle className="text-sm font-bold text-[#426083]">
-            학생 상세 정보
-          </DialogTitle>
-          <DialogDescription className="mt-3 text-2xl font-bold tracking-tight text-[#17283f]">
-            {student.building}관 {student.seat_number} {student.name}
-          </DialogDescription>
+          <div className="flex items-start justify-between gap-3">
+            <div>
+              <DialogTitle className="text-sm font-bold text-[#426083]">
+                {editing ? "학생 정보 수정" : "학생 상세 정보"}
+              </DialogTitle>
+              <DialogDescription className="mt-3 text-2xl font-bold tracking-tight text-[#17283f]">
+                {student.building}관 {student.seat_number} {student.name}
+              </DialogDescription>
+            </div>
+            {!editing && (
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setEditing(true)}
+              >
+                <Pencil size={16} />
+                수정하기
+              </Button>
+            )}
+          </div>
         </DialogHeader>
-        <div className="divide-y divide-[#e1e7ef]">
-          <section
-            aria-labelledby="student-basic-info"
-            className="py-5 first:pt-0"
+        {editing ? (
+          <form
+            className="grid gap-4 pt-5"
+            onSubmit={(event) => {
+              event.preventDefault();
+              void save(event.currentTarget);
+            }}
           >
-            <h3
-              id="student-basic-info"
-              className="text-sm font-bold text-[#17283f]"
-            >
-              기본 정보
-            </h3>
-            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {[
-                ["성별", student.gender ?? "미등록"],
-                ["학적", student.student_status ?? "미등록"],
-                ["학교", student.school || "미등록"],
-                ["연락처", student.phone || "미등록"],
-              ].map(([label, value]) => (
-                <div
-                  key={label}
-                  className="grid grid-cols-[5.5rem_1fr] gap-3 text-sm"
+            <fieldset disabled={busy} className="grid grid-cols-2 gap-4">
+              <label className="field">
+                이름
+                <input
+                  name="name"
+                  required
+                  maxLength={50}
+                  defaultValue={student.name}
+                />
+              </label>
+              <div className="field">
+                <label htmlFor="detail-gender">남녀</label>
+                <Select
+                  name="gender"
+                  defaultValue={student.gender ?? "unset"}
+                  disabled={busy}
                 >
-                  <dt className="text-muted-foreground">{label}</dt>
-                  <dd className="min-w-0 break-words font-medium text-[#17283f]">
-                    {label === "연락처" && (
-                      <Phone size={14} className="mr-2 inline text-[#426083]" />
-                    )}
-                    {value}
-                  </dd>
-                </div>
-              ))}
-            </dl>
-          </section>
-          <section aria-labelledby="student-academic-info" className="py-5">
-            <h3
-              id="student-academic-info"
-              className="text-sm font-bold text-[#17283f]"
+                  <SelectTrigger id="detail-gender" aria-label="남녀">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">-</SelectItem>
+                    <SelectItem value="남">남</SelectItem>
+                    <SelectItem value="여">여</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="detail-status">구분</label>
+                <Select
+                  name="student_status"
+                  defaultValue={student.student_status ?? "unset"}
+                  disabled={busy}
+                >
+                  <SelectTrigger id="detail-status" aria-label="구분">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">-</SelectItem>
+                    <SelectItem value="재학생">재학생</SelectItem>
+                    <SelectItem value="재수생">재수생</SelectItem>
+                    <SelectItem value="N수생">N수생</SelectItem>
+                    <SelectItem value="자퇴생">자퇴생</SelectItem>
+                    <SelectItem value="공시생">공시생</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="detail-grade">학년</label>
+                <Select
+                  name="grade"
+                  defaultValue={student.grade ?? "unset"}
+                  disabled={busy}
+                >
+                  <SelectTrigger id="detail-grade" aria-label="학년">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">-</SelectItem>
+                    <SelectItem value="예비고1">예비고1</SelectItem>
+                    <SelectItem value="고1">고1</SelectItem>
+                    <SelectItem value="고2">고2</SelectItem>
+                    <SelectItem value="고3">고3</SelectItem>
+                    <SelectItem value="n수">n수</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="field">
+                전화번호
+                <input
+                  type="tel"
+                  name="phone"
+                  maxLength={30}
+                  placeholder="010-1234-5678"
+                  defaultValue={student.phone ?? ""}
+                />
+              </label>
+              <div className="field">
+                <label htmlFor="detail-cycle">상담주기</label>
+                <Select
+                  name="cycle"
+                  required
+                  defaultValue={
+                    student.counseling_cycle_weeks > 4
+                      ? ""
+                      : String(student.counseling_cycle_weeks ?? 1)
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger id="detail-cycle" aria-label="상담주기">
+                    <SelectValue placeholder="상담주기 선택" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="0">상담 없음</SelectItem>
+                    {Array.from({ length: 4 }, (_, i) => (
+                      <SelectItem key={i + 1} value={String(i + 1)}>
+                        {i + 1}주
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="detail-requested">상담 희망 여부</label>
+                <Select
+                  name="counseling_requested"
+                  defaultValue={
+                    student.counseling_requested === false ||
+                    student.counseling_cycle_weeks === 0
+                      ? "no"
+                      : "yes"
+                  }
+                  disabled={busy}
+                >
+                  <SelectTrigger
+                    id="detail-requested"
+                    aria-label="상담 희망 여부"
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="yes">희망</SelectItem>
+                    <SelectItem value="no">미희망</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <label className="field col-span-2">
+                학교
+                <input
+                  name="school"
+                  maxLength={100}
+                  placeholder="예: 고양외고(졸)"
+                  defaultValue={student.school ?? ""}
+                />
+              </label>
+              <label className="field">
+                국어 선택과목
+                <input
+                  name="korean_subject"
+                  maxLength={100}
+                  placeholder="예: 언어와 매체"
+                  defaultValue={student.korean_subject ?? ""}
+                />
+              </label>
+              <label className="field">
+                수학 선택과목
+                <input
+                  name="math_subject"
+                  maxLength={100}
+                  placeholder="예: 확률과 통계"
+                  defaultValue={student.math_subject ?? ""}
+                />
+              </label>
+              <label className="field">
+                탐구 1
+                <input
+                  name="inquiry_subject_1"
+                  maxLength={100}
+                  placeholder="예: 생활과 윤리"
+                  defaultValue={student.inquiry_subject_1 ?? ""}
+                />
+              </label>
+              <label className="field">
+                탐구 2
+                <input
+                  name="inquiry_subject_2"
+                  maxLength={100}
+                  placeholder="예: 윤리와 사상"
+                  defaultValue={student.inquiry_subject_2 ?? ""}
+                />
+              </label>
+              <div className="field col-span-2">
+                <label htmlFor="detail-special-notes">특이사항</label>
+                <textarea
+                  id="detail-special-notes"
+                  name="special_notes"
+                  rows={4}
+                  maxLength={5000}
+                  placeholder="학생 지도 시 참고할 내용을 입력해 주세요."
+                  defaultValue={student.special_notes ?? ""}
+                />
+              </div>
+            </fieldset>
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            <div className="flex justify-end gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                disabled={busy}
+                onClick={() => {
+                  setError("");
+                  setEditing(false);
+                }}
+              >
+                취소
+              </Button>
+              <Button type="submit" disabled={busy}>
+                <Save size={16} />
+                저장
+              </Button>
+            </div>
+          </form>
+        ) : (
+          <div className="divide-y divide-[#e1e7ef]">
+            <section
+              aria-labelledby="student-basic-info"
+              className="py-5 first:pt-0"
             >
-              학업 정보
-            </h3>
-            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              {details
-                .filter(
-                  ([label]) =>
-                    label !== "성별" && label !== "학적" && label !== "학교",
-                )
-                .map(([label, value]) => (
+              <h3
+                id="student-basic-info"
+                className="text-sm font-bold text-[#17283f]"
+              >
+                기본 정보
+              </h3>
+              <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                {[
+                  ["성별", student.gender ?? "미등록"],
+                  ["학적", student.student_status ?? "미등록"],
+                  ["학년", student.grade ?? "미등록"],
+                  ["학교", student.school || "미등록"],
+                  ["연락처", student.phone || "미등록"],
+                ].map(([label, value]) => (
                   <div
                     key={label}
-                    className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm"
+                    className="grid grid-cols-[5.5rem_1fr] gap-3 text-sm"
                   >
                     <dt className="text-muted-foreground">{label}</dt>
                     <dd className="min-w-0 break-words font-medium text-[#17283f]">
+                      {label === "연락처" && (
+                        <Phone
+                          size={14}
+                          className="mr-2 inline text-[#426083]"
+                        />
+                      )}
                       {value}
                     </dd>
                   </div>
                 ))}
-            </dl>
-          </section>
-          <section aria-labelledby="student-counseling-info" className="py-5">
-            <h3
-              id="student-counseling-info"
-              className="text-sm font-bold text-[#17283f]"
+              </dl>
+            </section>
+            <section aria-labelledby="student-academic-info" className="py-5">
+              <h3
+                id="student-academic-info"
+                className="text-sm font-bold text-[#17283f]"
+              >
+                학업 정보
+              </h3>
+              <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                {details
+                  .filter(
+                    ([label]) =>
+                      label !== "성별" &&
+                      label !== "학적" &&
+                      label !== "학년" &&
+                      label !== "학교",
+                  )
+                  .map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm"
+                    >
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="min-w-0 break-words font-medium text-[#17283f]">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+              </dl>
+            </section>
+            <section aria-labelledby="student-counseling-info" className="py-5">
+              <h3
+                id="student-counseling-info"
+                className="text-sm font-bold text-[#17283f]"
+              >
+                상담 정보
+              </h3>
+              <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+                <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
+                  <dt className="text-muted-foreground">상담 희망</dt>
+                  <dd className="font-medium text-[#17283f]">
+                    {counselingRequest}
+                  </dd>
+                </div>
+                <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
+                  <dt className="text-muted-foreground">상담 주기</dt>
+                  <dd className="font-medium text-[#17283f]">
+                    {counselingCycle}
+                  </dd>
+                </div>
+              </dl>
+            </section>
+            <section
+              aria-labelledby="student-note-info"
+              className="py-5 last:pb-0"
             >
-              상담 정보
-            </h3>
-            <dl className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
-              <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
-                <dt className="text-muted-foreground">상담 희망</dt>
-                <dd className="font-medium text-[#17283f]">
-                  {counselingRequest}
-                </dd>
-              </div>
-              <div className="grid grid-cols-[7.5rem_1fr] gap-3 text-sm">
-                <dt className="text-muted-foreground">상담 주기</dt>
-                <dd className="font-medium text-[#17283f]">
-                  {counselingCycle}
-                </dd>
-              </div>
-            </dl>
-          </section>
-          <section
-            aria-labelledby="student-note-info"
-            className="py-5 last:pb-0"
-          >
-            <h3
-              id="student-note-info"
-              className="text-sm font-bold text-[#17283f]"
-            >
-              특이사항
-            </h3>
-            <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
-              {student.special_notes || "등록된 특이사항이 없습니다."}
-            </p>
-          </section>
-        </div>
+              <h3
+                id="student-note-info"
+                className="text-sm font-bold text-[#17283f]"
+              >
+                특이사항
+              </h3>
+              <p className="mt-4 whitespace-pre-wrap break-words text-sm leading-6 text-muted-foreground">
+                {student.special_notes || "등록된 특이사항이 없습니다."}
+              </p>
+            </section>
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );
@@ -1001,6 +1327,11 @@ export function CounselingManagement({
           student={student}
           open={studentDetailsOpen}
           onOpenChange={setStudentDetailsOpen}
+          onSaved={(saved) =>
+            setStudents((rows) =>
+              rows.map((row) => (row.id === saved.id ? saved : row)),
+            )
+          }
         />
         <form
           aria-label={
@@ -1243,6 +1574,11 @@ export function CounselingManagement({
         student={student!}
         open={studentDetailsOpen}
         onOpenChange={setStudentDetailsOpen}
+        onSaved={(saved) =>
+          setStudents((rows) =>
+            rows.map((row) => (row.id === saved.id ? saved : row)),
+          )
+        }
       />
       <section className="panel page-panel overflow-hidden">
         <div className="p-5 sm:p-6 flex flex-wrap gap-3 justify-between items-center">

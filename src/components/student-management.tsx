@@ -38,7 +38,17 @@ import {
 import { toast } from "sonner";
 import { StudentSeating } from "./student-seating";
 
-export function StudentManagement({ building, view = "list", adding = false, onAddClose }: { building: string; view?: "list" | "seating"; adding?: boolean; onAddClose?: () => void }) {
+export function StudentManagement({
+  building,
+  view = "list",
+  adding = false,
+  onAddClose,
+}: {
+  building: string;
+  view?: "list" | "seating";
+  adding?: boolean;
+  onAddClose?: () => void;
+}) {
   const member = useContext(MemberProfileContext);
   const [students, setStudents] = useState<Student[]>([]);
   const [loading, setLoading] = useState(true);
@@ -137,157 +147,172 @@ export function StudentManagement({ building, view = "list", adding = false, onA
     );
   return (
     <>
-      {view === "seating" ? <StudentSeating building={building} students={students} loading={loading} error={loadError} onRetry={() => setReload(value => value + 1)} onSelect={(student, seat) => { edit(student); setSeatDraft(seat); }} /> : (
-      <section className="panel page-panel overflow-hidden">
-        <div>
-          <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
-            <div>
-              <PageHeading as="h2" emoji="🎓">
-                학생 리스트{" "}
-                <span className="text-sm font-normal text-muted-foreground">
-                  {loading ? (
-                    <Skeleton className="inline-block h-4 w-8 align-middle" />
-                  ) : (
-                    `${filtered.length}명`
-                  )}
-                </span>
-              </PageHeading>
-              <p className="subtext mt-1">
-                학생을 클릭하면 정보를 수정하거나 삭제할 수 있습니다.
-              </p>
+      {view === "seating" ? (
+        <StudentSeating
+          building={building}
+          students={students}
+          loading={loading}
+          error={loadError}
+          onRetry={() => setReload((value) => value + 1)}
+          onSelect={(student, seat) => {
+            edit(student);
+            setSeatDraft(seat);
+          }}
+        />
+      ) : (
+        <section className="panel page-panel overflow-hidden">
+          <div>
+            <div className="p-5 sm:p-6 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <PageHeading as="h2" emoji="🎓">
+                  학생 리스트{" "}
+                  <span className="text-sm font-normal text-muted-foreground">
+                    {loading ? (
+                      <Skeleton className="inline-block h-4 w-8 align-middle" />
+                    ) : (
+                      `${filtered.length}명`
+                    )}
+                  </span>
+                </PageHeading>
+                <p className="subtext mt-1">
+                  학생을 클릭하면 정보를 수정하거나 삭제할 수 있습니다.
+                </p>
+              </div>
+              <Button
+                onClick={() => edit(null)}
+                disabled={loading || Boolean(loadError)}
+              >
+                <Plus size={16} />
+                학생 추가
+              </Button>
             </div>
-            <Button
-              onClick={() => edit(null)}
-              disabled={loading || Boolean(loadError)}
-            >
-              <Plus size={16} />
-              학생 추가
-            </Button>
-          </div>
-          <div className="px-5 pb-5 flex flex-wrap gap-3 justify-between">
-            <div className="relative">
-              <Search
-                size={15}
-                className="absolute left-3 top-2.5 text-muted-foreground"
-              />
-              <Input
-                className="pl-9 w-60"
-                aria-label="학생 검색"
-                placeholder="학생 이름 검색"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-              />
+            <div className="px-5 pb-5 flex flex-wrap gap-3 justify-between">
+              <div className="relative">
+                <Search
+                  size={15}
+                  className="absolute left-3 top-2.5 text-muted-foreground"
+                />
+                <Input
+                  className="pl-9 w-60"
+                  aria-label="학생 검색"
+                  placeholder="학생 이름 검색"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                />
+              </div>
             </div>
           </div>
-        </div>
-        {loading ? (
-          <TableSkeleton
-            label="학생 리스트"
-            columns={[
-              "좌석번호",
-              "이름",
-              "구분",
-              "학교",
-              "선택과목",
-              "특이사항",
-              "전화번호",
-            ]}
-          />
-        ) : loadError ? (
-          <div role="alert" className="p-5">
-            <p>{loadError}</p>
-            <Button
-              variant="outline"
-              className="mt-3"
-              onClick={() => setReload((n) => n + 1)}
-            >
-              다시 불러오기
-            </Button>
-          </div>
-        ) : (
-          <div className="table-wrap page-table-wrap overflow-y-auto overscroll-contain">
-            <table>
-              <thead className="sticky top-0 z-10">
-                <tr>
-                  <th>좌석번호</th>
-                  <th>이름</th>
-                  <th>구분</th>
-                  <th>학교</th>
-                  <th>선택과목</th>
-                  <th>특이사항</th>
-                  <th>전화번호</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((student) => (
-                  <tr
-                    key={student.id}
-                    className="student-row cursor-pointer transition-colors"
-                    onClick={() => edit(student)}
-                  >
-                    <td>
-                      {student.seat_number
-                        ? building === "전체"
-                          ? `${student.building}관 ${student.seat_number}`
-                          : student.seat_number
-                        : "-"}
-                    </td>
-                    <td>
-                      <button
-                        className="font-bold text-left"
-                        aria-label={`${student.name} 학생 수정`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          edit(student);
-                        }}
-                      >
-                        {student.name}
-                      </button>
-                    </td>
-                    <td>{student.student_status || "-"}</td>
-                    <td>{student.school || "-"}</td>
-                    <td className="min-w-48">
-                      {student.korean_subject ||
-                      student.math_subject ||
-                      student.inquiry_subject_1 ||
-                      student.inquiry_subject_2 ? (
-                        <div className="text-xs space-y-1">
-                          <p>
-                            국어: {student.korean_subject || "-"} · 수학:{" "}
-                            {student.math_subject || "-"}
-                          </p>
-                          <p>
-                            탐구 1: {student.inquiry_subject_1 || "-"} · 탐구 2:{" "}
-                            {student.inquiry_subject_2 || "-"}
-                          </p>
-                        </div>
-                      ) : (
-                        "-"
-                      )}
-                    </td>
-                    <td>
-                      <p
-                        className="max-w-60 line-clamp-2 whitespace-pre-wrap break-words"
-                        title={student.special_notes || undefined}
-                      >
-                        {student.special_notes || "-"}
-                      </p>
-                    </td>
-                    <td>{student.phone || "-"}</td>
+          {loading ? (
+            <TableSkeleton
+              label="학생 리스트"
+              columns={[
+                "좌석번호",
+                "이름",
+                "구분",
+                "학년",
+                "학교",
+                "선택과목",
+                "특이사항",
+                "전화번호",
+              ]}
+            />
+          ) : loadError ? (
+            <div role="alert" className="p-5">
+              <p>{loadError}</p>
+              <Button
+                variant="outline"
+                className="mt-3"
+                onClick={() => setReload((n) => n + 1)}
+              >
+                다시 불러오기
+              </Button>
+            </div>
+          ) : (
+            <div className="table-wrap page-table-wrap overflow-y-auto overscroll-contain">
+              <table>
+                <thead className="sticky top-0 z-10">
+                  <tr>
+                    <th>좌석번호</th>
+                    <th>이름</th>
+                    <th>구분</th>
+                    <th>학년</th>
+                    <th>학교</th>
+                    <th>선택과목</th>
+                    <th>특이사항</th>
+                    <th>전화번호</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-            {filtered.length === 0 && (
-              <p className="p-10 text-center text-sm text-muted-foreground">
-                {students.length
-                  ? "검색 조건에 맞는 학생이 없습니다."
-                  : "등록된 학생이 없습니다. 학생을 추가해 주세요."}
-              </p>
-            )}
-          </div>
-        )}
-      </section>
+                </thead>
+                <tbody>
+                  {filtered.map((student) => (
+                    <tr
+                      key={student.id}
+                      className="student-row cursor-pointer transition-colors"
+                      onClick={() => edit(student)}
+                    >
+                      <td>
+                        {student.seat_number
+                          ? building === "전체"
+                            ? `${student.building}관 ${student.seat_number}`
+                            : student.seat_number
+                          : "-"}
+                      </td>
+                      <td>
+                        <button
+                          className="font-bold text-left"
+                          aria-label={`${student.name} 학생 수정`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            edit(student);
+                          }}
+                        >
+                          {student.name}
+                        </button>
+                      </td>
+                      <td>{student.student_status || "-"}</td>
+                      <td>{student.grade || "-"}</td>
+                      <td>{student.school || "-"}</td>
+                      <td className="min-w-48">
+                        {student.korean_subject ||
+                        student.math_subject ||
+                        student.inquiry_subject_1 ||
+                        student.inquiry_subject_2 ? (
+                          <div className="text-xs space-y-1">
+                            <p>
+                              국어: {student.korean_subject || "-"} · 수학:{" "}
+                              {student.math_subject || "-"}
+                            </p>
+                            <p>
+                              탐구 1: {student.inquiry_subject_1 || "-"} · 탐구
+                              2: {student.inquiry_subject_2 || "-"}
+                            </p>
+                          </div>
+                        ) : (
+                          "-"
+                        )}
+                      </td>
+                      <td>
+                        <p
+                          className="max-w-60 line-clamp-2 whitespace-pre-wrap break-words"
+                          title={student.special_notes || undefined}
+                        >
+                          {student.special_notes || "-"}
+                        </p>
+                      </td>
+                      <td>{student.phone || "-"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              {filtered.length === 0 && (
+                <p className="p-10 text-center text-sm text-muted-foreground">
+                  {students.length
+                    ? "검색 조건에 맞는 학생이 없습니다."
+                    : "등록된 학생이 없습니다. 학생을 추가해 주세요."}
+                </p>
+              )}
+            </div>
+          )}
+        </section>
       )}
       <Dialog
         open={open}
@@ -321,6 +346,9 @@ export function StudentManagement({ building, view = "list", adding = false, onA
                 student_status: (data.get("student_status") === "unset"
                   ? null
                   : data.get("student_status")) as Student["student_status"],
+                grade: (data.get("grade") === "unset"
+                  ? null
+                  : data.get("grade")) as Student["grade"],
                 building: Number(data.get("building")),
                 gender: (data.get("gender") === "unset"
                   ? null
@@ -364,7 +392,8 @@ export function StudentManagement({ building, view = "list", adding = false, onA
                 <Select
                   name="building"
                   defaultValue={String(
-                    selected?.building ?? (seatDraft || building === "2" ? 2 : 1),
+                    selected?.building ??
+                      (seatDraft || building === "2" ? 2 : 1),
                   )}
                   disabled={busy}
                 >
@@ -422,6 +451,26 @@ export function StudentManagement({ building, view = "list", adding = false, onA
                     <SelectItem value="N수생">N수생</SelectItem>
                     <SelectItem value="자퇴생">자퇴생</SelectItem>
                     <SelectItem value="공시생">공시생</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="field">
+                <label htmlFor="student-grade">학년</label>
+                <Select
+                  name="grade"
+                  defaultValue={selected?.grade ?? "unset"}
+                  disabled={busy}
+                >
+                  <SelectTrigger id="student-grade" aria-label="학년">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="unset">-</SelectItem>
+                    <SelectItem value="예비고1">예비고1</SelectItem>
+                    <SelectItem value="고1">고1</SelectItem>
+                    <SelectItem value="고2">고2</SelectItem>
+                    <SelectItem value="고3">고3</SelectItem>
+                    <SelectItem value="n수">n수</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
