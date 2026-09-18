@@ -277,9 +277,6 @@ export function FloatingMemo({
     <div className="memo-titlebar memo-titlebar-embedded">
       <StickyNote size={19} aria-hidden="true" />
       <h2>메모장</h2>
-      {dirty && (
-        <span className="memo-dirty-dot" aria-label="저장되지 않은 변경" />
-      )}
       {emojiControls}
     </div>
   ) : (
@@ -453,20 +450,6 @@ export function FloatingMemo({
                 다시 불러오기
               </Button>
             )}
-            <div className="memo-footer">
-              <span className="text-[10px] text-muted-foreground">
-                {content.length}/5,000 ·{" "}
-                {loading
-                  ? "불러오는 중…"
-                  : failed
-                    ? "불러오기 실패"
-                    : message
-                      ? "저장 재시도 중…"
-                      : saving || dirty
-                        ? "자동 저장 중…"
-                        : "자동 저장됨"}
-              </span>
-            </div>
           </div>,
           container ?? document.body,
         )}

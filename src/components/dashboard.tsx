@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { MemberProfileContext } from "./auth-gate";
+import { SharedMemo } from "./shared-memo";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import {
@@ -204,7 +205,6 @@ export function Dashboard({
   const [reload, setReload] = useState(0);
   const [today, setToday] = useState(localDate());
   const [neededSeatFilter, setNeededSeatFilter] = useState("all");
-  const [completedSeatFilter, setCompletedSeatFilter] = useState("all");
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [selectedStudentIds, setSelectedStudentIds] = useState<string[]>([]);
@@ -217,10 +217,7 @@ export function Dashboard({
     if (building === "1" && neededSeatFilter === "502") {
       setNeededSeatFilter("all");
     }
-    if (building === "1" && completedSeatFilter === "502") {
-      setCompletedSeatFilter("all");
-    }
-  }, [building, neededSeatFilter, completedSeatFilter]);
+  }, [building, neededSeatFilter]);
   useEffect(() => {
     let active = true;
     let fetching = false;
@@ -325,14 +322,7 @@ export function Dashboard({
       firstCounselTimes.set(journal.student_id, journal.created_at);
   }
   const completed = visible
-    .filter(
-      (row) =>
-        myLatestDates.get(row.id) === today &&
-        (completedSeatFilter === "all" ||
-          (completedSeatFilter === "M" && row.seat_number.startsWith("M")) ||
-          (completedSeatFilter === "W" && row.seat_number.startsWith("W")) ||
-          (completedSeatFilter === "502" && row.seat_number.startsWith("502"))),
-    )
+    .filter((row) => myLatestDates.get(row.id) === today)
     .sort(
       (a, b) =>
         (firstCounselTimes.get(a.id) ?? "").localeCompare(
@@ -623,112 +613,100 @@ export function Dashboard({
             )}
           </div>
         </section>
-        <section
-          aria-label="오늘 상담한 학생"
-          className="panel p-5 dashboard-section"
-        >
-          <div className="flex items-center gap-2 mb-4">
-            <CheckCheck size={18} className="text-[#426083]" />
-            <h2 className="font-bold">오늘 상담한 학생</h2>
-            <span className="ml-auto text-lg font-bold text-[#426083]">
-              {completed.length}
-              <small className="ml-1 text-xs font-normal">명</small>
-            </span>
-          </div>
-          <div
-            className="mb-2 flex flex-wrap gap-1 rounded-lg bg-muted p-1"
-            role="group"
-            aria-label="오늘 상담한 학생 좌석 필터"
-          >
-            {[
-              { value: "all", label: "전체" },
-              { value: "M", label: "M" },
-              { value: "W", label: "W" },
-              ...(building === "1" ? [] : [{ value: "502", label: "502호" }]),
-            ].map((option) => (
-              <button
-                key={option.value}
-                type="button"
-                aria-pressed={completedSeatFilter === option.value}
-                onClick={() => setCompletedSeatFilter(option.value)}
-                className={`rounded-md px-2 py-1.5 text-xs ${completedSeatFilter === option.value ? "bg-white shadow-sm text-primary" : "text-muted-foreground"}`}
+        <div className="dashboard-section">
+          <div className="dashboard-stack">
+            <section
+              aria-label="오늘 상담한 학생"
+              className="panel p-4 dashboard-subsection dashboard-subsection-compact"
+            >
+              <div className="flex items-center gap-2 mb-3">
+                <CheckCheck size={18} className="text-[#426083]" />
+                <h2 className="font-bold">오늘 상담한 학생</h2>
+                <span className="ml-auto text-lg font-bold text-[#426083]">
+                  {completed.length}
+                  <small className="ml-1 text-xs font-normal">명</small>
+                </span>
+              </div>
+              <div
+                className="dashboard-list space-y-2"
+                tabIndex={0}
+                role="region"
+                aria-label="오늘 상담한 학생 목록"
               >
-                {option.label}
-              </button>
-            ))}
+                {completed.map((student) => (
+                  <StudentCard
+                    key={student.id}
+                    student={student}
+                    onNavigate={onNavigate}
+                    detailPath={
+                      todayJournalByStudent.has(student.id)
+                        ? `/counseling/students/${student.id}/journals/${todayJournalByStudent.get(student.id)!.id}`
+                        : undefined
+                    }
+                  />
+                ))}
+                {!completed.length && (
+                  <p className="py-8 text-center text-sm text-muted-foreground">
+                    오늘 작성된 상담 기록이 없습니다.
+                  </p>
+                )}
+              </div>
+              <div
+                className="mt-3 border-t border-[#dce6f2] pt-3"
+                aria-label="오늘 상담한 학생 작업"
+              >
+                <div className="grid grid-cols-2 gap-2">
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          aria-label="문자 전송 체크"
+                          disabled={
+                            markingMessages ||
+                            !completed.length ||
+                            completedMessageCount === completed.length
+                          }
+                          onClick={() => void markAllTodayMessages()}
+                          className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                        >
+                          <MessageSquare size={20} aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>문자 전송 일괄 체크</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon"
+                          aria-label="상담일지 일괄 복사"
+                          disabled={copying || !completed.length}
+                          onClick={() => void copyTodayJournals()}
+                          className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
+                        >
+                          <Copy size={20} aria-hidden="true" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent>상담일지 일괄 복사</TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                </div>
+              </div>
+            </section>
+            <section
+              aria-label="전달 내용"
+              className="panel p-5 dashboard-subsection dashboard-subsection-fill"
+            >
+              <SharedMemo />
+            </section>
           </div>
-          <div
-            className="dashboard-list space-y-2"
-            tabIndex={0}
-            role="region"
-            aria-label="오늘 상담한 학생 목록"
-          >
-            {completed.map((student) => (
-              <StudentCard
-                key={student.id}
-                student={student}
-                onNavigate={onNavigate}
-                detailPath={
-                  todayJournalByStudent.has(student.id)
-                    ? `/counseling/students/${student.id}/journals/${todayJournalByStudent.get(student.id)!.id}`
-                    : undefined
-                }
-              />
-            ))}
-            {!completed.length && (
-              <p className="py-8 text-center text-sm text-muted-foreground">
-                오늘 작성된 상담 기록이 없습니다.
-              </p>
-            )}
-          </div>
-          <div
-            className="mt-5 border-t border-[#dce6f2] pt-4"
-            aria-label="오늘 상담한 학생 작업"
-          >
-            <div className="grid grid-cols-2 gap-2">
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label="문자 전송 체크"
-                      disabled={
-                        markingMessages ||
-                        !completed.length ||
-                        completedMessageCount === completed.length
-                      }
-                      onClick={() => void markAllTodayMessages()}
-                      className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
-                    >
-                      <MessageSquare size={20} aria-hidden="true" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>일괄 체크</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-              <TooltipProvider>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="icon"
-                      aria-label="상담일지 일괄 복사"
-                      disabled={copying || !completed.length}
-                      onClick={() => void copyTodayJournals()}
-                      className="h-11 w-full text-[#426083] hover:bg-[#dce6f2] hover:text-[#17283f]"
-                    >
-                      <Copy size={20} aria-hidden="true" />
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent>상담일지 일괄 복사</TooltipContent>
-                </Tooltip>
-              </TooltipProvider>
-            </div>
-          </div>
-        </section>
+        </div>
         <section aria-label="메모장" className="panel p-5 dashboard-section">
           <div ref={onMemoContainer} className="memo-dashboard-host" />
         </section>
