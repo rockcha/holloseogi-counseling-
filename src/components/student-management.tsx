@@ -320,7 +320,7 @@ export function StudentManagement({
           if (!lock.current) setOpen(value);
         }}
       >
-        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-4xl">
           <DialogHeader>
             <DialogTitle>
               {selected ? "학생 정보 수정" : "학생 추가"}
@@ -377,7 +377,10 @@ export function StudentManagement({
               });
             }}
           >
-            <fieldset disabled={busy} className="grid grid-cols-2 gap-4">
+            <fieldset
+              disabled={busy}
+              className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4"
+            >
               <label className="field">
                 이름
                 <input
@@ -533,7 +536,7 @@ export function StudentManagement({
                   </SelectContent>
                 </Select>
               </div>
-              <label className="field col-span-2">
+              <label className="field sm:col-span-2 lg:col-span-4">
                 학교
                 <input
                   name="school"
@@ -578,7 +581,7 @@ export function StudentManagement({
                   defaultValue={selected?.inquiry_subject_2 ?? ""}
                 />
               </label>
-              <div className="field col-span-2">
+              <div className="field sm:col-span-2 lg:col-span-4">
                 <label htmlFor="student-special-notes">특이사항</label>
                 <textarea
                   id="student-special-notes"
@@ -597,7 +600,7 @@ export function StudentManagement({
             )}
 
             <div className="flex gap-2 justify-end">
-              {selected && member?.is_admin && (
+              {selected && (
                 <Button
                   type="button"
                   variant="destructive"
