@@ -134,21 +134,63 @@ export async function createAnnouncement(
 }
 
 export async function deleteAnnouncement(row: Announcement, actorId: string) {
-  if (!actorId || row.author_id !== actorId || (row.category ?? "announcement") !== "announcement")
+  if (
+    !actorId ||
+    row.author_id !== actorId ||
+    (row.category ?? "announcement") !== "announcement"
+  )
     throw new Error("본인이 작성한 전달 내용만 삭제할 수 있습니다.");
   if (!supabase) {
     const rows: Announcement[] = JSON.parse(localStorage.getItem(key) ?? "[]");
     const stored = rows.find((item) => item.id === row.id);
-    if (!stored || stored.author_id !== actorId || (stored.category ?? "announcement") !== "announcement")
+    if (
+      !stored ||
+      stored.author_id !== actorId ||
+      (stored.category ?? "announcement") !== "announcement"
+    )
       throw new Error("삭제할 전달 내용이 없거나 삭제 권한이 없습니다.");
-    localStorage.setItem(key, JSON.stringify(rows.filter((item) => item.id !== row.id)));
-    const comments: AnnouncementComment[] = JSON.parse(localStorage.getItem(commentKey) ?? "[]");
-    localStorage.setItem(commentKey, JSON.stringify(comments.filter((item) => item.announcement_id !== row.id)));
+    localStorage.setItem(
+      key,
+      JSON.stringify(rows.filter((item) => item.id !== row.id)),
+    );
+    const comments: AnnouncementComment[] = JSON.parse(
+      localStorage.getItem(commentKey) ?? "[]",
+    );
+    const commentIds = comments
+      .filter((item) => item.announcement_id === row.id)
+      .map((item) => `comment:${item.id}`);
+    localStorage.setItem(
+      commentKey,
+      JSON.stringify(
+        comments.filter((item) => item.announcement_id !== row.id),
+      ),
+    );
+    for (const storageKey of [
+      `${key}-reads-${actorId}`,
+      `holoseogi-comment-reads-${actorId}`,
+    ]) {
+      const readIds: string[] = JSON.parse(
+        localStorage.getItem(storageKey) ?? "[]",
+      );
+      localStorage.setItem(
+        storageKey,
+        JSON.stringify(
+          readIds.filter((id) => id !== row.id && !commentIds.includes(id)),
+        ),
+      );
+    }
   } else {
-    const { data, error } = await supabase.from("announcements").delete()
-      .eq("id", row.id).eq("author_id", actorId).eq("category", "announcement").select("id");
+    const { data, error } = await supabase
+      .from("announcements")
+      .delete()
+      .eq("id", row.id)
+      .eq("author_id", actorId)
+      .eq("category", "announcement")
+      .select("id");
     if (error || !data?.length)
-      throw new Error("삭제하지 못했습니다. 삭제 권한과 연결 상태를 확인해 주세요.");
+      throw new Error(
+        "삭제하지 못했습니다. 삭제 권한과 연결 상태를 확인해 주세요.",
+      );
   }
   window.dispatchEvent(new Event("announcements-changed"));
 }

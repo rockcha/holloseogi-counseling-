@@ -592,7 +592,6 @@ export function Dashboard({
               <StudentCard
                 key={student.id}
                 student={student}
-                tone="orange"
                 showBuilding={building === "전체"}
                 onNavigate={onNavigate}
                 detail={
@@ -628,7 +627,7 @@ export function Dashboard({
                 </span>
               </div>
               <div
-                className="dashboard-list space-y-2"
+                className="dashboard-list grid grid-cols-2 gap-2"
                 tabIndex={0}
                 role="region"
                 aria-label="오늘 상담한 학생 목록"
@@ -646,7 +645,7 @@ export function Dashboard({
                   />
                 ))}
                 {!completed.length && (
-                  <p className="py-8 text-center text-sm text-muted-foreground">
+                  <p className="col-span-2 py-8 text-center text-sm text-muted-foreground">
                     오늘 작성된 상담 기록이 없습니다.
                   </p>
                 )}

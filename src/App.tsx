@@ -54,6 +54,7 @@ import { AnnouncementBoard } from "@/components/announcements";
 import { useAnnouncements } from "@/components/use-announcements";
 import { matchesTarget } from "@/lib/announcements";
 import { Dashboard } from "@/components/dashboard";
+import { CalendarBoard } from "@/components/calendar-board";
 import { StudentManagement } from "@/components/student-management";
 import { StudentStatistics } from "@/components/student-statistics";
 import { FloatingMemo } from "@/components/floating-memo";
@@ -90,6 +91,7 @@ const pageHints: Record<string, string> = {
   시간표: "준비중",
   메모장: "나만의 메모를 넓게 작성할 수 있습니다.",
   "할 일": "나만의 할 일을 정리하고 완료한 항목을 체크합니다.",
+  캘린더: "업무, 일정, 기타, 취미로 나눠 일정을 기록할 수 있습니다.",
   "활동 로그": "선생님들의 활동 기록을 확인할 수 있습니다.",
   "전달 내용": "선생님들끼리 업무 관련 중요 사항을 공유하는 곳입니다.",
   건의함: "새로운 기능 제안 혹은 버그 제보를 위한 곳입니다.",
@@ -134,14 +136,18 @@ export default function App() {
               ? "시간표"
               : window.location.pathname === "/todos"
                 ? "할 일"
-                : window.location.pathname === "/memo"
-                  ? "메모장"
-                  : "내 상담실",
+                : window.location.pathname.startsWith("/calendar")
+                  ? "캘린더"
+                  : window.location.pathname === "/memo"
+                    ? "메모장"
+                    : "내 상담실",
   );
   const studentId =
     path.match(
       /^\/counseling\/students\/([^/]+)(?:\/new|\/journals\/[^/]+)?\/?$/,
     )?.[1] ?? null;
+  const calendarDate =
+    path.match(/^\/calendar\/(\d{4}-\d{2}-\d{2})\/?$/)?.[1] ?? null;
   useEffect(() => {
     const onPop = async (event: PopStateEvent) => {
       if (!(await acceptPop(event))) return;
@@ -159,9 +165,11 @@ export default function App() {
                   ? "시간표"
                   : window.location.pathname === "/todos"
                     ? "할 일"
-                    : window.location.pathname === "/memo"
-                      ? "메모장"
-                      : "내 상담실",
+                    : window.location.pathname.startsWith("/calendar")
+                      ? "캘린더"
+                      : window.location.pathname === "/memo"
+                        ? "메모장"
+                        : "내 상담실",
       );
     };
     window.addEventListener("popstate", onPop);
@@ -394,11 +402,13 @@ export default function App() {
               ? "/timetable"
               : name === "할 일"
                 ? "/todos"
-                : name === "메모장"
-                  ? "/memo"
-                  : name === "학생 관리"
-                    ? "/students"
-                    : "/");
+                : name === "캘린더"
+                  ? "/calendar"
+                  : name === "메모장"
+                    ? "/memo"
+                    : name === "학생 관리"
+                      ? "/students"
+                      : "/");
     if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(name);
@@ -437,7 +447,8 @@ export default function App() {
         {page !== "건의함" &&
           page !== "시간표" &&
           page !== "메모장" &&
-          page !== "할 일" && (
+          page !== "할 일" &&
+          page !== "캘린더" && (
             <div
               className="building-filter"
               role="group"
@@ -597,6 +608,18 @@ export default function App() {
               </TooltipTrigger>
               <TooltipContent side="right">{pageHints["할 일"]}</TooltipContent>
             </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <button
+                  className={`nav-item ${page === "캘린더" ? "active" : ""}`}
+                  onClick={() => navigate("캘린더")}
+                >
+                  <CalendarDays size={18} />
+                  캘린더
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{pageHints.캘린더}</TooltipContent>
+            </Tooltip>
           </SidebarGroup>
           <SidebarGroup id="control-center" title="CONTROL CENTER">
             <Tooltip>
@@ -659,7 +682,16 @@ export default function App() {
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />
-              <PersonalTodos container={todoContainer} />
+              <PersonalTodos container={todoContainer} hideHeaderIcon />
+              <IconTooltip label="캘린더">
+                <button
+                  className="memo-launcher"
+                  aria-label="캘린더"
+                  onClick={() => void navigate("캘린더")}
+                >
+                  <CalendarDays size={19} />
+                </button>
+              </IconTooltip>
               <IconTooltip label="알림">
                 <button
                   className="memo-launcher"
@@ -876,9 +908,17 @@ export default function App() {
             <div ref={setMemoContainer} className="memo-page-host" />
           ) : page === "할 일" ? (
             <div ref={setTodoContainer} />
+          ) : page === "캘린더" ? (
+            <CalendarBoard
+              selectedDate={calendarDate}
+              onOpenDate={(date) =>
+                void navigate("캘린더", `/calendar/${date}`)
+              }
+              onCloseDate={() => void navigate("캘린더", "/calendar")}
+            />
           ) : page === "시간표" ? (
             <section className="panel p-5 sm:p-6">
-              <PageHeading emoji="🗓️">시간표</PageHeading>
+              <PageHeading emoji="⏰">시간표</PageHeading>
               <p className="mt-2 text-sm text-muted-foreground">
                 시간표 기능을 준비 중입니다.
               </p>

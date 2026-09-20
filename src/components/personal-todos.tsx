@@ -24,22 +24,31 @@ import {
 
 export function PersonalTodos({
   container,
+  hideHeaderIcon,
 }: {
   container: HTMLDivElement | null;
+  hideHeaderIcon?: boolean;
 }) {
   const member = useContext(MemberProfileContext);
   const ownerId = member?.id ?? "demo";
   return (
-    <TodoWorkspace key={ownerId} ownerId={ownerId} container={container} />
+    <TodoWorkspace
+      key={ownerId}
+      ownerId={ownerId}
+      container={container}
+      hideHeaderIcon={hideHeaderIcon}
+    />
   );
 }
 
 function TodoWorkspace({
   ownerId,
   container,
+  hideHeaderIcon,
 }: {
   ownerId: string;
   container: HTMLDivElement | null;
+  hideHeaderIcon?: boolean;
 }) {
   const [items, setItems] = useState<PersonalTodo[]>([]);
   const [draft, setDraft] = useState("");
@@ -54,7 +63,8 @@ function TodoWorkspace({
   const lock = useRef(false);
   const remaining = items.filter((item) => !item.completed).length;
   const visibleItems = items.filter(
-    (item) => todoFilter === "all" || item.completed === (todoFilter === "completed"),
+    (item) =>
+      todoFilter === "all" || item.completed === (todoFilter === "completed"),
   );
 
   useEffect(() => {
@@ -203,8 +213,8 @@ function TodoWorkspace({
                     todoFilter === "all"
                       ? "전체 할 일"
                       : todoFilter === "completed"
-                      ? "완료한 할 일"
-                      : "진행 중인 할 일"
+                        ? "완료한 할 일"
+                        : "진행 중인 할 일"
                   }
                 >
                   {visibleItems.length ? (
@@ -278,33 +288,38 @@ function TodoWorkspace({
 
   return (
     <>
-      <Dialog>
-        <IconTooltip label="할 일">
-          <DialogTrigger asChild>
-            <button
-              type="button"
-              className="memo-launcher"
-              aria-label="내 할 일 열기"
-            >
-              <ListTodo size={19} />
-            </button>
-          </DialogTrigger>
-        </IconTooltip>
-        <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl sm:max-w-xl gap-6">
-          <DialogHeader className="text-left pr-6">
-            <DialogTitle className="flex items-center gap-2.5 text-xl">
-              <span aria-hidden="true">📋</span>할 일
-            </DialogTitle>
-            <DialogDescription>
-              하나씩 정리하고, 가볍게 체크하세요.
-            </DialogDescription>
-          </DialogHeader>
-          {list()}
-        </DialogContent>
-      </Dialog>
+      {!hideHeaderIcon && (
+        <Dialog>
+          <IconTooltip label="할 일">
+            <DialogTrigger asChild>
+              <button
+                type="button"
+                className="memo-launcher"
+                aria-label="내 할 일 열기"
+              >
+                <ListTodo size={19} />
+              </button>
+            </DialogTrigger>
+          </IconTooltip>
+          <DialogContent className="max-h-[85dvh] overflow-y-auto rounded-2xl sm:max-w-xl gap-6">
+            <DialogHeader className="text-left pr-6">
+              <DialogTitle className="flex items-center gap-2.5 text-xl">
+                <span aria-hidden="true">📋</span>할 일
+              </DialogTitle>
+              <DialogDescription>
+                하나씩 정리하고, 가볍게 체크하세요.
+              </DialogDescription>
+            </DialogHeader>
+            {list()}
+          </DialogContent>
+        </Dialog>
+      )}
       {container &&
         createPortal(
-          <section className="panel flex w-full flex-col p-5 sm:p-6" aria-label="내 할 일">
+          <section
+            className="panel flex w-full flex-col p-5 sm:p-6"
+            aria-label="내 할 일"
+          >
             <div className="mb-7">
               <PageHeading emoji="📋">할 일</PageHeading>
               <p className="subtext mt-2">
