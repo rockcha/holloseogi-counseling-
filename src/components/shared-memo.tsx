@@ -143,12 +143,14 @@ export function SharedMemo() {
     if (next.length > 5000) return;
     setContent(next);
     setMessage("");
+    const caret = start + emoji.length;
     requestAnimationFrame(() => {
-      textarea.current?.focus();
-      textarea.current?.setSelectionRange(
-        start + emoji.length,
-        start + emoji.length,
-      );
+      const node = textarea.current;
+      if (!node) return;
+      const scrollTop = node.scrollTop;
+      node.focus({ preventScroll: true });
+      node.setSelectionRange(caret, caret);
+      node.scrollTop = scrollTop;
     });
   }
   return (

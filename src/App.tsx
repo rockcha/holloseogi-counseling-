@@ -35,6 +35,7 @@ import {
   ArrowUpRight,
   ArrowLeft,
   CheckCheck,
+  SmilePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,11 +69,31 @@ import { IconTooltip } from "@/components/ui/icon-tooltip";
 import { PageHeading } from "@/components/ui/page-heading";
 import { supabase } from "@/lib/supabase";
 import { fetchCounsels, persistCounsel } from "@/lib/counsels";
+
+const calendarMemoEmojis = [
+  "😊",
+  "👍",
+  "⭐",
+  "📌",
+  "✅",
+  "💡",
+  "📞",
+  "📚",
+  "🎯",
+  "❤️",
+  "🌱",
+  "✨",
+];
 import {
-  calendarEventTypeMap,
-  fetchCalendarEvents,
-  type CalendarEvent,
-} from "@/lib/calendar-events";
+  addCalendarTodo,
+  fetchCalendarMemos,
+  fetchCalendarTodos,
+  formatCalendarDayTitle,
+  saveCalendarMemo,
+  updateCalendarTodo,
+  type CalendarDailyMemo,
+  type CalendarTodo,
+} from "@/lib/calendar";
 import { Toaster, toast } from "sonner";
 import {
   relativeTime,
@@ -208,8 +229,22 @@ export default function App() {
   const [mobile, setMobile] = useState(false);
   const [notifications, setNotifications] = useState(false);
   const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarTab, setCalendarTab] = useState<"todos" | "memo">("todos");
+  const [calendarTodos, setCalendarTodos] = useState<CalendarTodo[]>([]);
+  const [calendarMemo, setCalendarMemo] = useState<CalendarDailyMemo | null>(
+    null,
+  );
+  const [calendarMemoContent, setCalendarMemoContent] = useState("");
+  const [calendarMemoSaved, setCalendarMemoSaved] = useState("");
+  const [calendarMemoSaving, setCalendarMemoSaving] = useState(false);
+  const [calendarDraftTodo, setCalendarDraftTodo] = useState("");
   const [calendarLoading, setCalendarLoading] = useState(false);
+  const [calendarEmojiOpen, setCalendarEmojiOpen] = useState(false);
+  const calendarMemoLock = useRef(false);
+  const calendarMemoTextarea = useRef<HTMLTextAreaElement>(null);
+  const calendarEmojiTrigger = useRef<HTMLButtonElement>(null);
+  const calendarEmojiMenu = useRef<HTMLDivElement>(null);
+  const calendarMemoSelection = useRef({ start: 0, end: 0 });
   const [reading, setReading] = useState(false);
   const [notificationError, setNotificationError] = useState("");
   const [profile, setProfile] = useState(false);
@@ -344,17 +379,125 @@ export default function App() {
   }
   const teacherName = member ? `${member.name} 선생님` : "홀로서기 선생님";
   const today = localDate();
+  const calendarOwnerId = member?.id ?? "demo";
   async function openHeaderCalendar() {
     setCalendarOpen(true);
+    setCalendarTab("todos");
     setCalendarLoading(true);
     try {
-      const rows = await fetchCalendarEvents(member?.id ?? "demo");
-      setCalendarEvents(rows.filter((event) => event.event_date === today));
+      const [todos, memos] = await Promise.all([
+        fetchCalendarTodos(calendarOwnerId),
+        fetchCalendarMemos(calendarOwnerId),
+      ]);
+      setCalendarTodos(todos.filter((todo) => todo.todo_date === today));
+      const memo = memos.find((item) => item.memo_date === today) ?? null;
+      setCalendarMemo(memo);
+      setCalendarMemoContent(memo?.content ?? "");
+      setCalendarMemoSaved(memo?.content ?? "");
     } catch {
-      setCalendarEvents([]);
+      setCalendarTodos([]);
+      setCalendarMemo(null);
+      setCalendarMemoContent("");
+      setCalendarMemoSaved("");
     } finally {
       setCalendarLoading(false);
     }
+  }
+  useEffect(() => {
+    if (
+      !calendarOpen ||
+      calendarLoading ||
+      calendarMemoContent === calendarMemoSaved
+    )
+      return;
+    const timer = window.setTimeout(async () => {
+      if (calendarMemoLock.current) return;
+      calendarMemoLock.current = true;
+      setCalendarMemoSaving(true);
+      const snapshot = calendarMemoContent;
+      try {
+        const row = await saveCalendarMemo(calendarOwnerId, today, snapshot);
+        setCalendarMemo(row);
+        setCalendarMemoSaved(snapshot);
+      } catch {
+        /* Retried on next change. */
+      } finally {
+        calendarMemoLock.current = false;
+        setCalendarMemoSaving(false);
+      }
+    }, 600);
+    return () => window.clearTimeout(timer);
+  }, [
+    calendarOpen,
+    calendarLoading,
+    calendarMemoContent,
+    calendarMemoSaved,
+    calendarOwnerId,
+    today,
+  ]);
+  async function addHeaderCalendarTodo() {
+    const content = calendarDraftTodo.trim();
+    if (!content) return;
+    try {
+      const row = await addCalendarTodo(calendarOwnerId, {
+        todo_date: today,
+        content,
+      });
+      setCalendarTodos((current) => [...current, row]);
+      setCalendarDraftTodo("");
+    } catch {
+      /* Ignored, form keeps the draft for retry. */
+    }
+  }
+  async function toggleHeaderCalendarTodo(todo: CalendarTodo) {
+    try {
+      const row = await updateCalendarTodo(calendarOwnerId, todo.id, {
+        done: !todo.done,
+      });
+      setCalendarTodos((current) =>
+        current.map((item) => (item.id === row.id ? row : item)),
+      );
+    } catch {
+      /* Ignored. */
+    }
+  }
+  useEffect(() => {
+    if (!calendarEmojiOpen) return;
+    const outside = (event: PointerEvent) => {
+      const target = event.target;
+      if (
+        target instanceof Node &&
+        !calendarEmojiMenu.current?.contains(target) &&
+        !calendarEmojiTrigger.current?.contains(target)
+      ) {
+        setCalendarEmojiOpen(false);
+      }
+    };
+    document.addEventListener("pointerdown", outside);
+    return () => document.removeEventListener("pointerdown", outside);
+  }, [calendarEmojiOpen]);
+  function insertCalendarMemoEmoji(emoji: string) {
+    const start =
+      calendarMemoTextarea.current?.selectionStart ??
+      calendarMemoSelection.current.start;
+    const end =
+      calendarMemoTextarea.current?.selectionEnd ??
+      calendarMemoSelection.current.end;
+    const next =
+      calendarMemoContent.slice(0, start) +
+      emoji +
+      calendarMemoContent.slice(end);
+    if (next.length > 5000) return;
+    setCalendarMemoContent(next);
+    const caret = start + emoji.length;
+    requestAnimationFrame(() => {
+      const node = calendarMemoTextarea.current;
+      if (!node) return;
+      const scrollTop = node.scrollTop;
+      node.focus({ preventScroll: true });
+      node.setSelectionRange(caret, caret);
+      node.scrollTop = scrollTop;
+    });
   }
   const upcoming = records
     .filter((r) => r.date === day && r.status !== "완료")
@@ -869,51 +1012,178 @@ export default function App() {
             <DialogContent className="max-w-md border-[#dce3ed] p-0">
               <DialogHeader className="border-b border-[#e5eaf1] bg-[#f7f9fc] px-6 py-5">
                 <DialogTitle className="text-xl text-[#17283f]">
-                  오늘의 일정
+                  오늘의 할 일 &amp; 메모
                 </DialogTitle>
                 <DialogDescription>
-                  {today.replaceAll("-", ".")} 일정 모아보기
+                  {formatCalendarDayTitle(today)}
                 </DialogDescription>
               </DialogHeader>
-              <div className="px-6 py-5">
-                {calendarLoading ? (
-                  <p
-                    role="status"
-                    className="py-6 text-center text-sm text-muted-foreground"
+              {calendarLoading ? (
+                <p
+                  role="status"
+                  className="px-6 py-6 text-center text-sm text-muted-foreground"
+                >
+                  불러오는 중...
+                </p>
+              ) : (
+                <div className="px-6 py-5">
+                  <div
+                    className="mb-4 flex w-full gap-1 rounded-lg bg-[#edf1f6] p-1"
+                    role="tablist"
                   >
-                    일정을 불러오는 중...
-                  </p>
-                ) : calendarEvents.length ? (
-                  <div className="space-y-2">
-                    {calendarEvents.map((event) => (
-                      <div
-                        key={event.id}
-                        className="flex items-center gap-3 rounded-sm border border-[#e5eaf1] px-3 py-2.5"
-                        style={{
-                          backgroundColor:
-                            calendarEventTypeMap[event.type].background,
-                        }}
+                    {(
+                      [
+                        ["todos", "할 일 보기"],
+                        ["memo", "메모하기"],
+                      ] as const
+                    ).map(([value, label]) => (
+                      <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        aria-selected={calendarTab === value}
+                        onClick={() => setCalendarTab(value)}
+                        className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${calendarTab === value ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-[#426083]"}`}
                       >
-                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#17283f]">
-                          {event.title}
-                        </span>
-                        <span
-                          className="shrink-0 text-xs"
-                          style={{
-                            color: calendarEventTypeMap[event.type].color,
-                          }}
-                        >
-                          {calendarEventTypeMap[event.type].label}
-                        </span>
-                      </div>
+                        {label}
+                      </button>
                     ))}
                   </div>
-                ) : (
-                  <p className="py-6 text-center text-sm text-muted-foreground">
-                    오늘 등록된 일정이 없습니다.
-                  </p>
-                )}
-              </div>
+                  {calendarTab === "todos" ? (
+                    <div className="max-h-[50dvh] overflow-y-auto">
+                      <div className="calendar-section-title">
+                        <span>할 일</span>
+                        <span className="text-xs font-normal text-muted-foreground">
+                          {calendarTodos.filter((t) => t.done).length}/
+                          {calendarTodos.length} 완료
+                        </span>
+                      </div>
+                      <form
+                        className="calendar-todo-add"
+                        onSubmit={(event) => {
+                          event.preventDefault();
+                          void addHeaderCalendarTodo();
+                        }}
+                      >
+                        <Input
+                          aria-label="오늘 할 일 추가"
+                          placeholder="오늘 할 일을 입력하세요"
+                          maxLength={300}
+                          value={calendarDraftTodo}
+                          onChange={(event) =>
+                            setCalendarDraftTodo(event.target.value)
+                          }
+                        />
+                        <Button
+                          type="submit"
+                          size="icon"
+                          disabled={!calendarDraftTodo.trim()}
+                        >
+                          <Plus size={16} />
+                        </Button>
+                      </form>
+                      {calendarTodos.length ? (
+                        <ul className="calendar-todo-list">
+                          {calendarTodos.map((todo) => (
+                            <li
+                              key={todo.id}
+                              className={`calendar-todo-item ${todo.done ? "calendar-todo-item-done" : ""}`}
+                            >
+                              <button
+                                type="button"
+                                aria-label={
+                                  todo.done ? "완료 취소" : "완료 처리"
+                                }
+                                aria-pressed={todo.done}
+                                className="calendar-todo-check"
+                                onClick={() =>
+                                  void toggleHeaderCalendarTodo(todo)
+                                }
+                              >
+                                {todo.done && <Check size={13} />}
+                              </button>
+                              <span className="calendar-todo-text">
+                                {todo.content}
+                              </span>
+                            </li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="calendar-todo-empty">
+                          오늘 등록된 할 일이 없습니다.
+                        </p>
+                      )}
+                    </div>
+                  ) : (
+                    <div>
+                      <div className="calendar-section-title">
+                        <span>메모</span>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs font-normal text-muted-foreground">
+                            {calendarMemoSaving ? "저장 중…" : ""}
+                          </span>
+                          <div className="relative">
+                            <IconTooltip label="이모지 추가">
+                              <button
+                                ref={calendarEmojiTrigger}
+                                type="button"
+                                className="memo-tool-button"
+                                aria-label="이모지 추가"
+                                aria-expanded={calendarEmojiOpen}
+                                onClick={() =>
+                                  setCalendarEmojiOpen((value) => !value)
+                                }
+                              >
+                                <SmilePlus size={16} />
+                              </button>
+                            </IconTooltip>
+                            {calendarEmojiOpen && (
+                              <div
+                                ref={calendarEmojiMenu}
+                                className="memo-emoji-menu"
+                                role="menu"
+                                aria-label="이모지 선택"
+                              >
+                                {calendarMemoEmojis.map((emoji) => (
+                                  <button
+                                    key={emoji}
+                                    type="button"
+                                    role="menuitem"
+                                    aria-label={`${emoji} 삽입`}
+                                    onClick={() => {
+                                      insertCalendarMemoEmoji(emoji);
+                                      setCalendarEmojiOpen(false);
+                                    }}
+                                  >
+                                    {emoji}
+                                  </button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <textarea
+                        ref={calendarMemoTextarea}
+                        aria-label="오늘의 메모"
+                        placeholder="오늘의 메모를 입력하세요"
+                        maxLength={5000}
+                        value={calendarMemoContent}
+                        onSelect={(event) => {
+                          calendarMemoSelection.current = {
+                            start: event.currentTarget.selectionStart,
+                            end: event.currentTarget.selectionEnd,
+                          };
+                        }}
+                        onChange={(event) =>
+                          setCalendarMemoContent(event.target.value)
+                        }
+                        className="calendar-memo-textarea calendar-memo-textarea-tall"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
               <DialogFooter className="border-t border-[#e5eaf1] px-6 py-4">
                 <Button
                   variant="outline"
@@ -1006,7 +1276,6 @@ export default function App() {
               onOpenDate={(date) =>
                 void navigate("캘린더", `/calendar/${date}`)
               }
-              onCloseDate={() => void navigate("캘린더", "/calendar")}
             />
           ) : page === "시간표" ? (
             <section className="panel p-5 sm:p-6">
