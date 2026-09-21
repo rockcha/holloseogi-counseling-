@@ -41,7 +41,7 @@ test("날짜 클릭은 URL 기반 일정 상세보기와 2열 일정 카드를 �
   ).toBeVisible();
   await expect(detail.getByRole("button", { name: "캘린더로" })).toBeVisible();
   await expect(detail.getByRole("button", { name: "일정 추가" })).toBeVisible();
-  await expect(detail).toContainText("📌");
+  await expect(detail).toContainText("일정");
 
   const firstCard = detail.getByText("학부모 상담").locator("../..");
   const secondCard = detail.getByText("회의 준비").locator("../..");

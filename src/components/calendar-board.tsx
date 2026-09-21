@@ -1,7 +1,21 @@
-import { useContext, useEffect, useMemo, useState } from "react";
+import {
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+} from "react";
 import { ChevronLeft, ChevronRight, Pencil, Plus, Trash2 } from "lucide-react";
 import { MemberProfileContext } from "./auth-gate";
 import { Button } from "./ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./ui/dialog";
 import { Input } from "./ui/input";
 import { PageHeading } from "./ui/page-heading";
 import { localDate } from "@/data";
@@ -26,7 +40,124 @@ function startOfMonth(date: Date) {
 function formatDayTitle(date: string) {
   const [, month, day] = date.split("-").map(Number);
   const weekday = weekdays[new Date(`${date}T00:00:00`).getDay()];
-  return `${month}월 ${day}일 ${weekday}요일`;
+  return `${month}월 ${day}일 (${weekday})`;
+}
+
+function ScheduleDialog({
+  open,
+  editingId,
+  draftDate,
+  draftType,
+  draftTitle,
+  draftMemo,
+  busy,
+  onOpenChange,
+  onDateChange,
+  onTypeChange,
+  onTitleChange,
+  onMemoChange,
+  onSubmit,
+  onCancel,
+}: {
+  open: boolean;
+  editingId: string | null;
+  draftDate: string;
+  draftType: CalendarEventType;
+  draftTitle: string;
+  draftMemo: string;
+  busy: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDateChange: (date: string) => void;
+  onTypeChange: (type: CalendarEventType) => void;
+  onTitleChange: (title: string) => void;
+  onMemoChange: (memo: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onCancel: () => void;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-lg gap-0 overflow-hidden border-[#dce3ed] p-0">
+        <DialogHeader className="border-b border-[#e5eaf1] bg-[#f7f9fc] px-6 py-5">
+          <DialogTitle>{editingId ? "일정 수정" : "새 일정 추가"}</DialogTitle>
+          <DialogDescription>{formatDayTitle(draftDate)}</DialogDescription>
+        </DialogHeader>
+        <form className="space-y-4 px-6 py-5" onSubmit={onSubmit}>
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-muted-foreground">
+              날짜
+            </p>
+            <Input
+              aria-label="일정 날짜"
+              type="date"
+              value={draftDate}
+              disabled={busy}
+              onChange={(event) => onDateChange(event.target.value)}
+              className="mt-1.5 bg-white"
+            />
+          </div>
+          <div
+            className="flex flex-wrap gap-1.5"
+            role="radiogroup"
+            aria-label="일정 유형"
+          >
+            {calendarEventTypes.map((item) => (
+              <button
+                key={item.value}
+                type="button"
+                role="radio"
+                aria-checked={draftType === item.value}
+                onClick={() => onTypeChange(item.value)}
+                className="inline-flex items-center rounded-sm border px-3 py-1.5 text-xs font-medium transition-colors"
+                style={{
+                  borderColor:
+                    draftType === item.value ? item.color : "#e1e7ef",
+                  backgroundColor:
+                    draftType === item.value ? item.background : "white",
+                  color: item.color,
+                }}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <Input
+            aria-label="일정 제목"
+            placeholder="제목"
+            maxLength={200}
+            value={draftTitle}
+            disabled={busy}
+            onChange={(event) => onTitleChange(event.target.value)}
+            className="mt-1.5 bg-white"
+          />
+          <div className="border-t border-[#e5eaf1] pt-4">
+            <textarea
+              aria-label="본문 내용"
+              placeholder="본문 내용을 입력하세요 (선택)"
+              maxLength={1000}
+              value={draftMemo}
+              disabled={busy}
+              onChange={(event) => onMemoChange(event.target.value)}
+              rows={3}
+              className="w-full resize-none rounded-sm border border-input bg-white px-3 py-2 text-sm font-normal text-[#17283f] shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+          </div>
+          <DialogFooter className="border-t border-[#e5eaf1] pt-4">
+            <Button
+              type="submit"
+              disabled={!draftTitle.trim() || busy}
+              className="flex-1 gap-1.5"
+            >
+              <Plus size={16} />
+              {editingId ? "수정 완료" : "추가"}
+            </Button>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              취소
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
 }
 
 export function CalendarBoard({
@@ -72,6 +203,10 @@ function CalendarWorkspace({
   const [error, setError] = useState("");
   const [formOpen, setFormOpen] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [draftDate, setDraftDate] = useState(today);
+  const [typeFilter, setTypeFilter] = useState<CalendarEventType | "all">(
+    "all",
+  );
   const [draftType, setDraftType] = useState<CalendarEventType>("schedule");
   const [draftTitle, setDraftTitle] = useState("");
   const [draftMemo, setDraftMemo] = useState("");
@@ -143,6 +278,7 @@ function CalendarWorkspace({
   function resetForm() {
     setFormOpen(false);
     setEditingId(null);
+    setDraftDate(today);
     setDraftType("schedule");
     setDraftTitle("");
     setDraftMemo("");
@@ -151,15 +287,29 @@ function CalendarWorkspace({
   function openDay(date: string) {
     resetForm();
     setError("");
+    setTypeFilter("all");
     onOpenDate(date);
   }
 
   function startAdd() {
     setEditingId(null);
+    setDraftDate(selectedDate ?? today);
     setDraftType("schedule");
     setDraftTitle("");
     setDraftMemo("");
     setFormOpen(true);
+  }
+
+  function openAdd(date: string, navigate = false) {
+    setError("");
+    setTypeFilter("all");
+    setEditingId(null);
+    setDraftDate(date);
+    setDraftType("schedule");
+    setDraftTitle("");
+    setDraftMemo("");
+    setFormOpen(true);
+    if (navigate) onOpenDate(date);
   }
 
   function startEdit(event: CalendarEvent) {
@@ -170,27 +320,67 @@ function CalendarWorkspace({
     setFormOpen(true);
   }
 
-  const dayEvents = selectedDate ? (eventsByDate.get(selectedDate) ?? []) : [];
+  function submitForm(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!draftTitle.trim()) return;
+    void mutate(async () => {
+      if (editingId) {
+        const row = await updateCalendarEvent(ownerId, editingId, {
+          event_date: draftDate,
+          type: draftType,
+          title: draftTitle,
+          memo: draftMemo,
+        });
+        setEvents((current) =>
+          current.map((item) => (item.id === row.id ? row : item)),
+        );
+      } else {
+        const row = await addCalendarEvent(ownerId, {
+          event_date: draftDate,
+          type: draftType,
+          title: draftTitle,
+          memo: draftMemo,
+        });
+        setEvents((current) => [...current, row]);
+      }
+      if (draftDate !== selectedDate) onOpenDate(draftDate);
+      resetForm();
+    });
+  }
+
+  const allDayEvents = selectedDate
+    ? (eventsByDate.get(selectedDate) ?? [])
+    : [];
+  const dayEvents =
+    typeFilter === "all"
+      ? allDayEvents
+      : allDayEvents.filter((event) => event.type === typeFilter);
   const holidayName = selectedDate
     ? koreanHolidayName(selectedDate)
     : undefined;
 
   if (selectedDate) {
     return (
-      <section className="panel p-5 sm:p-6" aria-label="일정 상세">
-        <div className="flex flex-wrap items-center justify-between gap-3">
+      <section className="panel p-4 sm:p-5" aria-label="일정 상세">
+        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-[#e8edf3] pb-4">
           <div>
-            <PageHeading as="h2" emoji="📌">
+            <PageHeading
+              as="h2"
+              emoji="📌"
+              className="gap-2 text-lg sm:text-xl"
+            >
               일정 상세보기
             </PageHeading>
-            <p className="mt-2 text-xl font-bold text-[#17283f] sm:text-2xl">
-              {formatDayTitle(selectedDate)}
-            </p>
-            {holidayName && (
-              <span className="mt-1 inline-block rounded-full bg-[#fdecec] px-2.5 py-0.5 text-xs font-medium text-[#c0392b]">
-                {holidayName}
-              </span>
-            )}
+            <div className="mt-1.5 flex flex-wrap items-center gap-2">
+              <p className="text-lg font-bold text-[#17283f] sm:text-xl">
+                {formatDayTitle(selectedDate)}
+              </p>
+              {holidayName && (
+                <span className="rounded-sm bg-[#fdecec] px-2 py-1 text-xs font-medium text-[#c0392b]">
+                  {holidayName}
+                </span>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <Button variant="outline" className="gap-1.5" onClick={onCloseDate}>
@@ -208,27 +398,73 @@ function CalendarWorkspace({
             {error}
           </p>
         )}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2">
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-b border-[#e8edf3] pb-3">
+          <div
+            className="flex flex-wrap items-center gap-1"
+            role="group"
+            aria-label="일정 유형 필터"
+          >
+            <span className="mr-1 text-xs font-medium text-muted-foreground">
+              유형
+            </span>
+            <button
+              type="button"
+              aria-pressed={typeFilter === "all"}
+              onClick={() => setTypeFilter("all")}
+              className={`rounded-sm px-2 py-1 text-xs transition-colors ${typeFilter === "all" ? "bg-[#eef1f5] font-semibold text-[#17283f]" : "text-muted-foreground hover:bg-[#f7f9fc]"}`}
+            >
+              전체
+            </button>
+            {calendarEventTypes.map((item) => {
+              const active = typeFilter === item.value;
+              return (
+                <button
+                  key={item.value}
+                  type="button"
+                  aria-pressed={active}
+                  onClick={() => setTypeFilter(item.value)}
+                  className="rounded-sm px-2 py-1 text-xs font-medium transition-colors"
+                  style={{
+                    color: item.color,
+                    backgroundColor: active ? item.background : "transparent",
+                  }}
+                >
+                  {item.label}
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {dayEvents.length}개 일정
+          </span>
+        </div>
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
           {dayEvents.length ? (
             dayEvents.map((event) => (
               <div
                 key={event.id}
-                className="flex items-start gap-2.5 rounded-lg border border-[#e5eaf1] bg-white px-3.5 py-3"
+                className="flex items-start gap-3 rounded-sm border border-[#e5eaf1] px-3 py-2.5"
+                style={{
+                  backgroundColor: calendarEventTypeMap[event.type].background,
+                }}
               >
-                <span aria-hidden="true" className="mt-0.5 text-base">
-                  {calendarEventTypeMap[event.type].emoji}
-                </span>
                 <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-muted-foreground">
+                  <p
+                    className="text-[11px] font-semibold"
+                    style={{ color: calendarEventTypeMap[event.type].color }}
+                  >
                     {calendarEventTypeMap[event.type].label}
                   </p>
-                  <p className="mt-0.5 wrap-break-word text-sm font-medium text-[#17283f]">
+                  <p className="wrap-break-word text-sm font-semibold text-[#17283f]">
                     {event.title}
                   </p>
                   {event.memo && (
-                    <p className="mt-1 whitespace-pre-wrap wrap-break-word text-xs text-muted-foreground">
-                      {event.memo}
-                    </p>
+                    <>
+                      <div className="my-2 border-t border-black/10" />
+                      <p className="whitespace-pre-wrap wrap-break-word text-xs leading-5 text-[#3f5067]">
+                        {event.memo}
+                      </p>
+                    </>
                   )}
                 </div>
                 <div className="flex shrink-0 gap-1.5">
@@ -262,93 +498,29 @@ function CalendarWorkspace({
               </div>
             ))
           ) : (
-            <p className="rounded-lg border border-dashed border-[#e1e7ef] px-4 py-8 text-center text-sm text-muted-foreground">
-              등록된 일정이 없습니다.
+            <p className="col-span-full rounded-sm border border-dashed border-[#e1e7ef] px-4 py-8 text-center text-sm text-muted-foreground">
+              {allDayEvents.length
+                ? "선택한 유형의 일정이 없습니다."
+                : "등록된 일정이 없습니다."}
             </p>
           )}
         </div>
-        {formOpen && (
-          <form
-            className="mt-5 space-y-3 rounded-xl border border-[#e5eaf1] bg-[#fbfcfe] p-4"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (!draftTitle.trim()) return;
-              void mutate(async () => {
-                if (editingId) {
-                  const row = await updateCalendarEvent(ownerId, editingId, {
-                    event_date: selectedDate,
-                    type: draftType,
-                    title: draftTitle,
-                    memo: draftMemo,
-                  });
-                  setEvents((current) =>
-                    current.map((item) => (item.id === row.id ? row : item)),
-                  );
-                } else {
-                  const row = await addCalendarEvent(ownerId, {
-                    event_date: selectedDate,
-                    type: draftType,
-                    title: draftTitle,
-                    memo: draftMemo,
-                  });
-                  setEvents((current) => [...current, row]);
-                }
-                resetForm();
-              });
-            }}
-          >
-            <div
-              className="flex flex-wrap gap-1.5"
-              role="radiogroup"
-              aria-label="일정 유형"
-            >
-              {calendarEventTypes.map((item) => (
-                <button
-                  key={item.value}
-                  type="button"
-                  role="radio"
-                  aria-checked={draftType === item.value}
-                  onClick={() => setDraftType(item.value)}
-                  className={`inline-flex items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs transition-colors ${draftType === item.value ? "border-[#17283f] bg-[#17283f] text-white" : "border-[#e1e7ef] bg-white text-muted-foreground hover:border-[#c7d4e3]"}`}
-                >
-                  <span aria-hidden="true">{item.emoji}</span>
-                  {item.label}
-                </button>
-              ))}
-            </div>
-            <Input
-              aria-label="일정 제목"
-              placeholder="제목을 입력하세요"
-              maxLength={200}
-              value={draftTitle}
-              disabled={busy}
-              onChange={(event) => setDraftTitle(event.target.value)}
-            />
-            <textarea
-              aria-label="메모"
-              placeholder="메모 (선택)"
-              maxLength={1000}
-              value={draftMemo}
-              disabled={busy}
-              onChange={(event) => setDraftMemo(event.target.value)}
-              rows={3}
-              className="w-full resize-none rounded-md border border-input bg-white px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring/30 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-            <div className="flex gap-2">
-              <Button
-                type="submit"
-                disabled={!draftTitle.trim() || busy}
-                className="flex-1 gap-1.5"
-              >
-                <Plus size={16} />
-                {editingId ? "수정 완료" : "추가"}
-              </Button>
-              <Button type="button" variant="outline" onClick={resetForm}>
-                취소
-              </Button>
-            </div>
-          </form>
-        )}
+        <ScheduleDialog
+          open={formOpen}
+          editingId={editingId}
+          draftDate={draftDate}
+          draftType={draftType}
+          draftTitle={draftTitle}
+          draftMemo={draftMemo}
+          busy={busy}
+          onOpenChange={(open) => (open ? setFormOpen(true) : resetForm())}
+          onDateChange={setDraftDate}
+          onTypeChange={setDraftType}
+          onTitleChange={setDraftTitle}
+          onMemoChange={setDraftMemo}
+          onSubmit={submitForm}
+          onCancel={resetForm}
+        />
       </section>
     );
   }
@@ -357,7 +529,7 @@ function CalendarWorkspace({
     <section className="panel p-5 sm:p-6" aria-label="캘린더">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <PageHeading emoji="📅">캘린더</PageHeading>
-        <Button className="gap-1.5" onClick={() => openDay(today)}>
+        <Button className="gap-1.5" onClick={() => openAdd(today)}>
           <Plus size={16} />
           일정 추가
         </Button>
@@ -365,8 +537,7 @@ function CalendarWorkspace({
       <div className="mt-4 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         {calendarEventTypes.map((item) => (
           <span key={item.value} className="inline-flex items-center gap-1">
-            <span aria-hidden="true">{item.emoji}</span>
-            {item.label}
+            <span style={{ color: item.color }}>{item.label}</span>
           </span>
         ))}
       </div>
@@ -431,53 +602,85 @@ function CalendarWorkspace({
                 }
                 const dayNumber = Number(date.slice(-2));
                 const dayItems = eventsByDate.get(date) ?? [];
-                const uniqueTypes = Array.from(
-                  new Set(dayItems.map((item) => item.type)),
-                );
                 const isToday = date === today;
                 const holiday = koreanHolidayName(date);
                 return (
-                  <button
+                  <div
                     key={date}
-                    type="button"
                     onClick={() => openDay(date)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openDay(date);
+                      }
+                    }}
+                    role="button"
+                    tabIndex={0}
                     aria-label={`${date} 일정 보기, ${dayItems.length}건`}
-                    className={`flex h-20 flex-col items-start gap-1 border-b border-l border-[#e1e7ef] p-1.5 text-left transition-colors first:border-l-0 hover:bg-[#f2f6fb] sm:h-24 sm:p-2 ${holiday ? "bg-[#fdecec]" : isToday ? "bg-[#eef4ff]" : "bg-white"}`}
+                    className={`group relative flex h-20 flex-col items-start gap-0.5 border-b border-l border-[#e1e7ef] p-1 text-left first:border-l-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#426083] sm:h-24 sm:p-1.5 ${holiday ? "bg-[#fdecec]" : "bg-white"}`}
                   >
-                    <span
-                      className={`text-xs font-medium ${isToday ? "flex size-5 items-center justify-center rounded-full bg-[#17283f] text-white" : holiday ? "text-[#c0392b]" : "text-[#17283f]"}`}
-                    >
-                      {dayNumber}
-                    </span>
-                    <span className="flex flex-wrap gap-0.5">
-                      {uniqueTypes.slice(0, 3).map((type) => {
-                        const titles = dayItems
-                          .filter((item) => item.type === type)
-                          .map((item) => item.title)
-                          .join(", ");
-                        return (
-                          <span
-                            key={type}
-                            title={titles}
-                            className="text-xs leading-none"
-                          >
-                            {calendarEventTypeMap[type].emoji}
-                          </span>
-                        );
-                      })}
-                      {dayItems.length > 3 && (
-                        <span className="text-[10px] text-muted-foreground">
-                          +{dayItems.length - 3}
+                    <span className="flex min-w-0 max-w-full items-center gap-1 pr-5">
+                      <span
+                        className={`text-xs font-medium ${isToday ? "flex size-6 items-center justify-center rounded-full border-2 border-[#17283f] text-[#17283f]" : holiday ? "text-[#c0392b]" : "text-[#17283f]"}`}
+                      >
+                        {dayNumber}
+                      </span>
+                      {holiday && (
+                        <span className="truncate text-[9px] font-medium text-[#c0392b]">
+                          {holiday}
                         </span>
                       )}
                     </span>
-                  </button>
+                    <button
+                      type="button"
+                      aria-label={`${date} 일정 추가`}
+                      className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-sm text-[#62738a] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-white hover:text-[#17283f]"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openAdd(date);
+                      }}
+                    >
+                      <Plus size={13} aria-hidden="true" />
+                    </button>
+                    <span className="min-h-0 w-full flex-1 space-y-0.5 overflow-y-auto pr-0.5">
+                      {dayItems.map((item) => (
+                        <span
+                          key={item.id}
+                          title={item.title}
+                          className="flex min-w-0 items-center px-1 py-0.5 text-[10px] leading-tight"
+                          style={{
+                            color: calendarEventTypeMap[item.type].color,
+                            backgroundColor:
+                              calendarEventTypeMap[item.type].background,
+                          }}
+                        >
+                          <span className="min-w-0 truncate">{item.title}</span>
+                        </span>
+                      ))}
+                    </span>
+                  </div>
                 );
               })}
             </div>
           ))}
         </div>
       )}
+      <ScheduleDialog
+        open={formOpen}
+        editingId={editingId}
+        draftDate={draftDate}
+        draftType={draftType}
+        draftTitle={draftTitle}
+        draftMemo={draftMemo}
+        busy={busy}
+        onOpenChange={(open) => (open ? setFormOpen(true) : resetForm())}
+        onDateChange={setDraftDate}
+        onTypeChange={setDraftType}
+        onTitleChange={setDraftTitle}
+        onMemoChange={setDraftMemo}
+        onSubmit={submitForm}
+        onCancel={resetForm}
+      />
     </section>
   );
 }

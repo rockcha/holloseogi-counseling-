@@ -42,6 +42,7 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -67,6 +68,11 @@ import { IconTooltip } from "@/components/ui/icon-tooltip";
 import { PageHeading } from "@/components/ui/page-heading";
 import { supabase } from "@/lib/supabase";
 import { fetchCounsels, persistCounsel } from "@/lib/counsels";
+import {
+  calendarEventTypeMap,
+  fetchCalendarEvents,
+  type CalendarEvent,
+} from "@/lib/calendar-events";
 import { Toaster, toast } from "sonner";
 import {
   relativeTime,
@@ -201,6 +207,9 @@ export default function App() {
   const [filter, setFilter] = useState("전체");
   const [mobile, setMobile] = useState(false);
   const [notifications, setNotifications] = useState(false);
+  const [calendarOpen, setCalendarOpen] = useState(false);
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([]);
+  const [calendarLoading, setCalendarLoading] = useState(false);
   const [reading, setReading] = useState(false);
   const [notificationError, setNotificationError] = useState("");
   const [profile, setProfile] = useState(false);
@@ -327,6 +336,18 @@ export default function App() {
   }
   const teacherName = member ? `${member.name} 선생님` : "홀로서기 선생님";
   const today = localDate();
+  async function openHeaderCalendar() {
+    setCalendarOpen(true);
+    setCalendarLoading(true);
+    try {
+      const rows = await fetchCalendarEvents(member?.id ?? "demo");
+      setCalendarEvents(rows.filter((event) => event.event_date === today));
+    } catch {
+      setCalendarEvents([]);
+    } finally {
+      setCalendarLoading(false);
+    }
+  }
   const upcoming = records
     .filter((r) => r.date === day && r.status !== "완료")
     .sort((a, b) => a.time.localeCompare(b.time));
@@ -687,7 +708,7 @@ export default function App() {
                 <button
                   className="memo-launcher"
                   aria-label="캘린더"
-                  onClick={() => void navigate("캘린더")}
+                  onClick={() => void openHeaderCalendar()}
                 >
                   <CalendarDays size={19} />
                 </button>
@@ -840,6 +861,73 @@ export default function App() {
               </div>
             )}
           </div>
+          <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
+            <DialogContent className="max-w-md border-[#dce3ed] p-0">
+              <DialogHeader className="border-b border-[#e5eaf1] bg-[#f7f9fc] px-6 py-5">
+                <DialogTitle className="text-xl text-[#17283f]">
+                  오늘의 일정
+                </DialogTitle>
+                <DialogDescription>
+                  {today.replaceAll("-", ".")} 일정 모아보기
+                </DialogDescription>
+              </DialogHeader>
+              <div className="px-6 py-5">
+                {calendarLoading ? (
+                  <p
+                    role="status"
+                    className="py-6 text-center text-sm text-muted-foreground"
+                  >
+                    일정을 불러오는 중...
+                  </p>
+                ) : calendarEvents.length ? (
+                  <div className="space-y-2">
+                    {calendarEvents.map((event) => (
+                      <div
+                        key={event.id}
+                        className="flex items-center gap-3 rounded-sm border border-[#e5eaf1] border-l-4 px-3 py-2.5"
+                        style={{
+                          borderLeftColor:
+                            calendarEventTypeMap[event.type].color,
+                        }}
+                      >
+                        <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#17283f]">
+                          {event.title}
+                        </span>
+                        <span
+                          className="shrink-0 text-xs"
+                          style={{
+                            color: calendarEventTypeMap[event.type].color,
+                          }}
+                        >
+                          {calendarEventTypeMap[event.type].label}
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="py-6 text-center text-sm text-muted-foreground">
+                    오늘 등록된 일정이 없습니다.
+                  </p>
+                )}
+              </div>
+              <DialogFooter className="border-t border-[#e5eaf1] px-6 py-4">
+                <Button
+                  variant="outline"
+                  onClick={() => setCalendarOpen(false)}
+                >
+                  닫기
+                </Button>
+                <Button
+                  onClick={() => {
+                    setCalendarOpen(false);
+                    void navigate("캘린더");
+                  }}
+                >
+                  캘린더 열기
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
         </header>
         <main className="main">
           {page === "상담 일정" && loading && (

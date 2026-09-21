@@ -15,12 +15,13 @@ export type CalendarEvent = {
 export const calendarEventTypes: {
   value: CalendarEventType;
   label: string;
-  emoji: string;
+  color: string;
+  background: string;
 }[] = [
-  { value: "work", label: "업무", emoji: "💼" },
-  { value: "schedule", label: "일정", emoji: "📌" },
-  { value: "hobby", label: "취미", emoji: "🎨" },
-  { value: "etc", label: "기타", emoji: "🏷️" },
+  { value: "work", label: "업무", color: "#2f6fed", background: "#edf3ff" },
+  { value: "schedule", label: "일정", color: "#d97706", background: "#fff7e8" },
+  { value: "hobby", label: "취미", color: "#0f8a72", background: "#eafaf5" },
+  { value: "etc", label: "기타", color: "#8b5cf6", background: "#f3efff" },
 ];
 
 export const calendarEventTypeMap = Object.fromEntries(
