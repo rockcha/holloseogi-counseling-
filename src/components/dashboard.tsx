@@ -7,6 +7,7 @@ import {
   CheckCheck,
   Copy,
   Clock3,
+  Eye,
   MessageSquare,
   Plus,
   Search,
@@ -51,6 +52,7 @@ import {
 } from "@/lib/parent-messages";
 import { localDate } from "@/data";
 import { toast } from "sonner";
+import { StudentDetailsDialog } from "./counseling-management";
 
 async function dashboardQuery<T>(label: string, query: Promise<T>): Promise<T> {
   try {
@@ -94,6 +96,9 @@ function StudentCard({
   onRemove,
   disabled = false,
   showBuilding = false,
+  onCardClick,
+  showActions = false,
+  disableCardClick = false,
 }: {
   student: Student;
   detail?: string;
@@ -104,6 +109,9 @@ function StudentCard({
   onRemove?: () => void;
   disabled?: boolean;
   showBuilding?: boolean;
+  onCardClick?: () => void;
+  showActions?: boolean;
+  disableCardClick?: boolean;
 }) {
   const seatLabel = showBuilding
     ? `${student.building}관 ${student.seat_number}`
@@ -113,10 +121,12 @@ function StudentCard({
       <button
         type="button"
         aria-label={`${seatLabel} ${student.name} 상담 상세 보기`}
-        onClick={() =>
-          onNavigate(detailPath ?? `/counseling/students/${student.id}`)
-        }
-        className={`w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#426083] ${onRemove ? "pr-12" : ""} ${tone === "orange" ? "bg-[#fff0df] text-[#71370f] hover:bg-[#fbe0c2]" : "bg-[#edf2f8] text-[#17283f] hover:bg-[#dce6f2]"}`}
+        onClick={() => {
+          if (disableCardClick) return;
+          if (onCardClick) onCardClick();
+          else onNavigate(detailPath ?? `/counseling/students/${student.id}`);
+        }}
+        className={`w-full rounded-lg p-3 text-left transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-[#426083] ${onRemove || showActions ? "pr-24" : ""} ${tone === "orange" ? "bg-[#fff0df] text-[#71370f] hover:bg-[#fbe0c2]" : "bg-[#edf2f8] text-[#17283f] hover:bg-[#dce6f2]"}`}
       >
         <span className="flex items-center gap-3 min-h-8">
           <span className="min-w-12 text-center text-xs font-bold">
@@ -137,6 +147,46 @@ function StudentCard({
           </span>
         )}
       </button>
+      {showActions && (
+        <div className="absolute right-2 top-1/2 flex -translate-y-1/2 gap-1">
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`${student.name} 학생정보 보기`}
+                  className="h-10 w-10 text-[#426083] hover:bg-white/70"
+                  onClick={onCardClick}
+                >
+                  <Eye size={16} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>학생정보 보기</TooltipContent>
+            </Tooltip>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  type="button"
+                  size="icon-sm"
+                  variant="ghost"
+                  aria-label={`${student.name} 상담하러 가기`}
+                  className="h-10 w-10 text-[#426083] hover:bg-white/70"
+                  onClick={() =>
+                    onNavigate(
+                      detailPath ?? `/counseling/students/${student.id}`,
+                    )
+                  }
+                >
+                  <MessageSquare size={16} aria-hidden="true" />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent>상담하러 가기</TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        </div>
+      )}
       {onRemove && (
         <div className="absolute right-2 top-3">
           <RemoveButton
@@ -212,6 +262,7 @@ export function Dashboard({
   const [copying, setCopying] = useState(false);
   const [markingMessages, setMarkingMessages] = useState(false);
   const [saveError, setSaveError] = useState("");
+  const [detailsStudent, setDetailsStudent] = useState<Student | null>(null);
   const lock = useRef(false);
   useEffect(() => {
     if (building === "1" && neededSeatFilter === "502") {
@@ -544,6 +595,21 @@ export function Dashboard({
     );
   return (
     <>
+      {detailsStudent && (
+        <StudentDetailsDialog
+          student={detailsStudent}
+          open
+          onOpenChange={(open) => {
+            if (!open) setDetailsStudent(null);
+          }}
+          onSaved={(saved) => {
+            setStudents((rows) =>
+              rows.map((row) => (row.id === saved.id ? saved : row)),
+            );
+            setDetailsStudent(saved);
+          }}
+        />
+      )}
       <PageHeading emoji="🛋️" className="mb-4">
         내 상담실
       </PageHeading>
@@ -603,6 +669,9 @@ export function Dashboard({
                       ).detail
                     : ""
                 }
+                showActions
+                onCardClick={() => setDetailsStudent(student)}
+                disableCardClick
               />
             ))}
             {!needed.length && (

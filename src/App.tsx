@@ -25,7 +25,6 @@ import {
   Armchair,
   Lightbulb,
   LogOut,
-  Menu,
   MessageSquare,
   Plus,
   Search,
@@ -34,6 +33,7 @@ import {
   Users,
   X,
   ArrowUpRight,
+  ArrowLeft,
   CheckCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -235,6 +235,14 @@ export default function App() {
       document.removeEventListener("keydown", escape);
     };
   }, [profile, notifications]);
+  useEffect(() => {
+    if (!mobile) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setMobile(false);
+    };
+    document.addEventListener("keydown", closeOnEscape);
+    return () => document.removeEventListener("keydown", closeOnEscape);
+  }, [mobile]);
   const [dialog, setDialog] = useState(false);
   const [selected, setSelected] = useState<Counsel | null>(null);
   const [day, setDay] = useState(localDate());
@@ -464,7 +472,6 @@ export default function App() {
         </AlertDialogContent>
       </AlertDialog>
       <div className="floating-actions">
-        <FloatingMemo container={memoContainer} onDirtyChange={setMemoDirty} />
         {page !== "건의함" &&
           page !== "시간표" &&
           page !== "메모장" &&
@@ -490,10 +497,27 @@ export default function App() {
       {mobile && (
         <button
           aria-label="메뉴 닫기"
-          className="fixed inset-0 z-20 bg-black/20"
+          className="fixed inset-0 z-40 bg-[#17283f]/20 backdrop-blur-[1px]"
           onClick={() => setMobile(false)}
         />
       )}
+      <button
+        type="button"
+        className="drawer-launcher"
+        aria-label="메뉴 열기"
+        aria-expanded={mobile}
+        onClick={() => setMobile(true)}
+      >
+        <ChevronRight size={20} aria-hidden="true" />
+      </button>
+      <button
+        type="button"
+        className="back-launcher"
+        aria-label="뒤로 가기"
+        onClick={() => window.history.back()}
+      >
+        <ArrowLeft size={18} aria-hidden="true" />
+      </button>
       <aside className={`sidebar ${mobile ? "open" : ""}`}>
         <TooltipProvider delayDuration={250}>
           <a
@@ -662,47 +686,27 @@ export default function App() {
       </aside>
       <div className="workspace">
         <header className="topbar">
-          <div className="flex items-center gap-3 text-xs text-[#62738a]">
+          <div className="flex items-center  text-xs text-[#62738a]">
             <button
-              className="mobile-toggle"
-              aria-label="메뉴 열기"
-              onClick={() => setMobile(true)}
+              type="button"
+              className="topbar-brand"
+              aria-label="상담실로 이동"
+              onClick={() => void navigate("내 상담실")}
             >
-              <Menu size={21} />
+              <BrandLogo className="topbar-logo" />
+              <span className="topbar-brand-copy">
+                <strong>홀로서기</strong>
+                <small>COUNSELING</small>
+              </span>
             </button>
-            <span className="hidden sm:inline">
-              {page === "활동 로그"
-                ? "CONTROL CENTER"
-                : page === "메모장" || page === "할 일"
-                  ? "PERSONAL"
-                  : page === "시간표" ||
-                      page === "전달 내용" ||
-                      page === "건의함"
-                    ? "COMMUNITY"
-                    : "WORKSPACE"}
-            </span>
-            <ChevronRight className="hidden sm:inline" size={13} />
-            <span className="hidden text-[#17283f] sm:inline">{page}</span>
-            {(page === "학생 관리" || page === "상담 관리") && (
-              <>
-                <ChevronRight className="hidden sm:inline" size={13} />
-                <span className="hidden font-semibold text-[#17283f] sm:inline">
-                  {path.endsWith("/statistics")
-                    ? "통계"
-                    : path === "/counseling/teachers"
-                      ? "나의 상담내역"
-                      : path === "/students/seating"
-                        ? "배치도"
-                        : page === "학생 관리"
-                          ? "학생 리스트"
-                          : "학생별 상담 리스트"}
-                </span>
-              </>
-            )}
           </div>
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />
+              <FloatingMemo
+                container={memoContainer}
+                onDirtyChange={setMemoDirty}
+              />
               <PersonalTodos container={todoContainer} hideHeaderIcon />
               <IconTooltip label="캘린더">
                 <button
@@ -884,10 +888,10 @@ export default function App() {
                     {calendarEvents.map((event) => (
                       <div
                         key={event.id}
-                        className="flex items-center gap-3 rounded-sm border border-[#e5eaf1] border-l-4 px-3 py-2.5"
+                        className="flex items-center gap-3 rounded-sm border border-[#e5eaf1] px-3 py-2.5"
                         style={{
-                          borderLeftColor:
-                            calendarEventTypeMap[event.type].color,
+                          backgroundColor:
+                            calendarEventTypeMap[event.type].background,
                         }}
                       >
                         <span className="min-w-0 flex-1 truncate text-sm font-medium text-[#17283f]">

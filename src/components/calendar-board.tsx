@@ -18,6 +18,12 @@ import {
 } from "./ui/dialog";
 import { Input } from "./ui/input";
 import { PageHeading } from "./ui/page-heading";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "./ui/tooltip";
 import { localDate } from "@/data";
 import { koreanHolidayName } from "@/lib/korean-holidays";
 import {
@@ -589,80 +595,95 @@ function CalendarWorkspace({
               </div>
             ))}
           </div>
-          {weeks.map((week, weekIndex) => (
-            <div key={weekIndex} className="grid grid-cols-7">
-              {week.map((date, dayIndex) => {
-                if (!date) {
+          <TooltipProvider delayDuration={350}>
+            {weeks.map((week, weekIndex) => (
+              <div key={weekIndex} className="grid grid-cols-7">
+                {week.map((date, dayIndex) => {
+                  if (!date) {
+                    return (
+                      <div
+                        key={dayIndex}
+                        className="h-20 border-b border-l border-[#e1e7ef] bg-[#fbfcfe] first:border-l-0 sm:h-24"
+                      />
+                    );
+                  }
+                  const dayNumber = Number(date.slice(-2));
+                  const dayItems = eventsByDate.get(date) ?? [];
+                  const isToday = date === today;
+                  const holiday = koreanHolidayName(date);
                   return (
-                    <div
-                      key={dayIndex}
-                      className="h-20 border-b border-l border-[#e1e7ef] bg-[#fbfcfe] first:border-l-0 sm:h-24"
-                    />
-                  );
-                }
-                const dayNumber = Number(date.slice(-2));
-                const dayItems = eventsByDate.get(date) ?? [];
-                const isToday = date === today;
-                const holiday = koreanHolidayName(date);
-                return (
-                  <div
-                    key={date}
-                    onClick={() => openDay(date)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openDay(date);
-                      }
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${date} 일정 보기, ${dayItems.length}건`}
-                    className={`group relative flex h-20 flex-col items-start gap-0.5 border-b border-l border-[#e1e7ef] p-1 text-left first:border-l-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#426083] sm:h-24 sm:p-1.5 ${holiday ? "bg-[#fdecec]" : "bg-white"}`}
-                  >
-                    <span className="flex min-w-0 max-w-full items-center gap-1 pr-5">
-                      <span
-                        className={`text-xs font-medium ${isToday ? "flex size-6 items-center justify-center rounded-full border-2 border-[#17283f] text-[#17283f]" : holiday ? "text-[#c0392b]" : "text-[#17283f]"}`}
-                      >
-                        {dayNumber}
-                      </span>
-                      {holiday && (
-                        <span className="truncate text-[9px] font-medium text-[#c0392b]">
-                          {holiday}
-                        </span>
-                      )}
-                    </span>
-                    <button
-                      type="button"
-                      aria-label={`${date} 일정 추가`}
-                      className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-sm text-[#62738a] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-white hover:text-[#17283f]"
-                      onClick={(event) => {
-                        event.stopPropagation();
-                        openAdd(date);
-                      }}
-                    >
-                      <Plus size={13} aria-hidden="true" />
-                    </button>
-                    <span className="min-h-0 w-full flex-1 space-y-0.5 overflow-y-auto pr-0.5">
-                      {dayItems.map((item) => (
-                        <span
-                          key={item.id}
-                          title={item.title}
-                          className="flex min-w-0 items-center px-1 py-0.5 text-[10px] leading-tight"
-                          style={{
-                            color: calendarEventTypeMap[item.type].color,
-                            backgroundColor:
-                              calendarEventTypeMap[item.type].background,
+                    <Tooltip key={date}>
+                      <TooltipTrigger asChild>
+                        <div
+                          onClick={() => openDay(date)}
+                          onKeyDown={(event) => {
+                            if (event.key === "Enter" || event.key === " ") {
+                              event.preventDefault();
+                              openDay(date);
+                            }
                           }}
+                          role="button"
+                          tabIndex={0}
+                          aria-label={`${date} 일정 보기, ${dayItems.length}건`}
+                          className={`group relative flex h-20 flex-col items-start gap-0.5 border-b border-l border-[#e1e7ef] p-1 text-left first:border-l-0 focus-visible:z-10 focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#426083] sm:h-24 sm:p-1.5 ${holiday ? "bg-[#fdecec]" : "bg-white"}`}
                         >
-                          <span className="min-w-0 truncate">{item.title}</span>
-                        </span>
-                      ))}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          ))}
+                          <span className="flex min-w-0 max-w-full items-center gap-1 pr-5">
+                            <span
+                              className={`text-xs font-medium ${isToday ? "flex size-6 items-center justify-center rounded-full border-2 border-[#17283f] text-[#17283f]" : holiday ? "text-[#c0392b]" : "text-[#17283f]"}`}
+                            >
+                              {dayNumber}
+                            </span>
+                            {holiday && (
+                              <span className="truncate text-[9px] font-medium text-[#c0392b]">
+                                {holiday}
+                              </span>
+                            )}
+                          </span>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                type="button"
+                                aria-label={`${date} 일정 추가`}
+                                className="absolute right-1 top-1 flex size-5 items-center justify-center rounded-sm text-[#62738a] opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 hover:bg-white hover:text-[#17283f]"
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  openAdd(date);
+                                }}
+                              >
+                                <Plus size={13} aria-hidden="true" />
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent>
+                              해당 날짜에 일정 추가하기
+                            </TooltipContent>
+                          </Tooltip>
+                          <span className="min-h-0 w-full flex-1 space-y-0.5 overflow-y-auto pr-0.5">
+                            {dayItems.map((item) => (
+                              <span
+                                key={item.id}
+                                title={item.title}
+                                className="flex min-w-0 items-center px-1 py-0.5 text-[10px] leading-tight"
+                                style={{
+                                  color: calendarEventTypeMap[item.type].color,
+                                  backgroundColor:
+                                    calendarEventTypeMap[item.type].background,
+                                }}
+                              >
+                                <span className="min-w-0 truncate">
+                                  {item.title}
+                                </span>
+                              </span>
+                            ))}
+                          </span>
+                        </div>
+                      </TooltipTrigger>
+                      <TooltipContent>일정 상세보기</TooltipContent>
+                    </Tooltip>
+                  );
+                })}
+              </div>
+            ))}
+          </TooltipProvider>
         </div>
       )}
       <ScheduleDialog

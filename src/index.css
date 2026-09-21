@@ -70,7 +70,13 @@ textarea {
   display: flex;
   flex-direction: column;
   padding: 34px 21px 20px;
-  z-index: 30;
+  z-index: 50;
+  transform: translateX(-100%);
+  transition: transform 0.22s ease;
+  box-shadow: 10px 0 30px rgb(23 40 63 / 8%);
+}
+.sidebar.open {
+  transform: translateX(0);
 }
 .brand {
   display: flex;
@@ -430,7 +436,7 @@ textarea {
   background: #eaf0f7;
 }
 .workspace {
-  margin-left: 238px;
+  margin-left: 0;
   overflow-x: clip;
 }
 .topbar {
@@ -600,8 +606,88 @@ tbody tr.counseling-current:hover {
   width: 100%;
   background: white;
 }
-.mobile-toggle {
-  display: none;
+.topbar-brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px 4px 2px;
+  color: #17283f;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  white-space: nowrap;
+}
+.topbar-brand:hover {
+  color: #426083;
+}
+.topbar-brand-copy {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  line-height: 1;
+}
+.topbar-brand-copy strong {
+  font-size: 17px;
+  letter-spacing: -0.5px;
+}
+.topbar-brand-copy small {
+  margin-top: 4px;
+  color: #62738a;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+}
+.drawer-launcher {
+  position: fixed;
+  top: 50%;
+  left: 0;
+  z-index: 45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 58px;
+  border: 1px solid #dce3ed;
+  border-left: 0;
+  border-radius: 0 8px 8px 0;
+  background: #fff;
+  color: #17283f;
+  box-shadow: 0 2px 8px rgb(23 40 63 / 6%);
+  transform: translateY(-50%);
+  transition:
+    width 0.18s ease,
+    background-color 0.18s ease;
+}
+.drawer-launcher:hover {
+  width: 36px;
+  background: #f7f9fc;
+}
+.back-launcher {
+  position: fixed;
+  left: 20px;
+  bottom: 22px;
+  z-index: 35;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border: 1px solid #dce3ed;
+  border-radius: 999px;
+  background: #fff;
+  color: #17283f;
+  box-shadow: 0 5px 18px rgb(23 40 63 / 12%);
+  transition:
+    transform 0.18s ease,
+    background-color 0.18s ease;
+}
+.back-launcher:hover {
+  background: #f7f9fc;
+  transform: translateX(-2px);
+}
+.topbar-logo {
+  width: 40px;
+  height: 40px;
 }
 .memo-launcher {
   position: relative;
@@ -1012,17 +1098,8 @@ select:focus-visible {
   }
 }
 @media (max-width: 900px) {
-  .sidebar {
-    transform: translateX(-100%);
-  }
-  .sidebar.open {
-    transform: translateX(0);
-  }
   .workspace {
     margin-left: 0;
-  }
-  .mobile-toggle {
-    display: inline-flex;
   }
   .main {
     padding: 24px 18px;
@@ -1052,12 +1129,12 @@ select:focus-visible {
   gap: 8px;
 }
 .memo-floating-launcher {
-  width: 52px;
-  height: 52px;
-  border: 1px solid #dce3ed;
-  border-radius: 16px;
-  background: #fff;
-  box-shadow: 0 6px 24px #17283f26;
+  width: auto;
+  height: auto;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  box-shadow: none;
 }
 .building-filter button {
   min-width: 46px;
@@ -1156,7 +1233,7 @@ select:focus-visible {
 }
 @media (min-width: 1100px) {
   .dashboard-columns {
-    grid-template-columns: minmax(0, 0.72fr) minmax(0, 1.18fr) minmax(0, 1fr);
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.08fr) minmax(0, 0.92fr);
   }
 }
 @media (min-width: 760px) and (max-width: 900px) {

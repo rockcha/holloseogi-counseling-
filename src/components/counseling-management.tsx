@@ -268,7 +268,7 @@ function RichJournalEditor({
   );
 }
 
-function StudentDetailsDialog({
+export function StudentDetailsDialog({
   student,
   open,
   onOpenChange,
@@ -798,6 +798,8 @@ export function CounselingManagement({
   const [query, setQuery] = useState("");
   const [teacherFilter, setTeacherFilter] = useState("");
   const [seatFilter, setSeatFilter] = useState("all");
+  const [gradeFilter, setGradeFilter] = useState("all");
+  const [counselingFilter, setCounselingFilter] = useState("all");
   const [saving, setSaving] = useState(false);
   const lock = useRef(false);
   const [saveError, setSaveError] = useState("");
@@ -883,6 +885,12 @@ export function CounselingManagement({
           (seatFilter === "502" && row.seat_number.startsWith("502-")) ||
           (seatFilter === "W" && row.seat_number.startsWith("W")) ||
           (seatFilter === "M" && row.seat_number.startsWith("M"))) &&
+        (gradeFilter === "all" ||
+          (gradeFilter === "unknown" && !row.grade) ||
+          row.grade === gradeFilter) &&
+        (counselingFilter === "all" ||
+          counselingStatus(row, latestDates.get(row.id), today).needed ===
+            (counselingFilter === "needed")) &&
         row.name.includes(query.trim()),
     )
     .sort(
@@ -897,6 +905,15 @@ export function CounselingManagement({
     ...(building === "1" ? [] : [{ value: "502", label: "502호" }]),
     { value: "W", label: "W" },
     { value: "M", label: "M" },
+  ];
+  const gradeFilterOptions = [
+    { value: "all", label: "전체 학년" },
+    { value: "예비고1", label: "예비고1" },
+    { value: "고1", label: "고1" },
+    { value: "고2", label: "고2" },
+    { value: "고3", label: "고3" },
+    { value: "n수", label: "n수" },
+    { value: "unknown", label: "미지정" },
   ];
   const studentNames = new Map(students.map((row) => [row.id, row.name]));
   const teacherJournals = allJournals.filter((row) => {
@@ -1194,6 +1211,28 @@ export function CounselingManagement({
                 </option>
               ))}
             </select>
+            <select
+              aria-label="학년 필터"
+              value={gradeFilter}
+              onChange={(event) => setGradeFilter(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              {gradeFilterOptions.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </select>
+            <select
+              aria-label="상담 상태 필터"
+              value={counselingFilter}
+              onChange={(event) => setCounselingFilter(event.target.value)}
+              className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+            >
+              <option value="all">상담 전체</option>
+              <option value="needed">상담 필요</option>
+              <option value="current">상담 불필요</option>
+            </select>
           </div>
           <div
             className="ml-auto flex flex-wrap items-center gap-4 text-xs text-muted-foreground"
@@ -1221,9 +1260,11 @@ export function CounselingManagement({
               <tr>
                 <th>좌석번호</th>
                 <th>이름</th>
+                <th>학년</th>
                 <th>마지막 상담</th>
                 <th>마지막 문자 전송</th>
                 <th>상담 주기</th>
+                <th className="text-right">상담 건수</th>
               </tr>
             </thead>
             <tbody>
@@ -1263,12 +1304,10 @@ export function CounselingManagement({
                         }}
                       >
                         {row.name}
-                        <span className="ml-2 text-sm font-semibold tabular-nums text-[#426083]">
-                          {latest.find((item) => item.student_id === row.id)
-                            ?.journal_count ?? 0}
-                          건
-                        </span>
                       </a>
+                    </td>
+                    <td className="whitespace-nowrap text-sm text-muted-foreground">
+                      {row.grade ?? "—"}
                     </td>
                     <td className="whitespace-nowrap">
                       {latestDates.get(row.id)?.replaceAll("-", ".") ?? "—"}
@@ -1289,6 +1328,11 @@ export function CounselingManagement({
                           ? "상담 없음"
                           : `${row.counseling_cycle_weeks}주`}
                       </span>
+                    </td>
+                    <td className="text-right font-semibold tabular-nums text-[#426083]">
+                      {latest.find((item) => item.student_id === row.id)
+                        ?.journal_count ?? 0}
+                      건
                     </td>
                   </tr>
                 );
@@ -1398,7 +1442,7 @@ export function CounselingManagement({
               />
               부모님 문자 전송 완료
             </label>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
+            <div className="grid grid-cols-1 gap-4 max-w-5xl sm:grid-cols-4">
               <label className="field">
                 좌석
                 <Input value={student.seat_number} readOnly />
@@ -1407,8 +1451,6 @@ export function CounselingManagement({
                 이름
                 <Input value={student.name} readOnly />
               </label>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 max-w-2xl">
               <label className="field">
                 날짜
                 <input
