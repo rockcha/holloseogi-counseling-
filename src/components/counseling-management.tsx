@@ -1,6 +1,7 @@
 import { PageHeading } from "./ui/page-heading";
 import { CounselingSkeleton } from "./ui/skeleton";
 import { useContext, useEffect, useRef, useState } from "react";
+import { createPortal, flushSync } from "react-dom";
 import {
   Eraser,
   Save,
@@ -10,6 +11,7 @@ import {
   Search,
   Phone,
   Pencil,
+  Printer,
 } from "lucide-react";
 
 import {
@@ -97,6 +99,40 @@ function plainTextFromRichText(value: string) {
   const element = document.createElement("div");
   element.innerHTML = sanitizeRichText(value);
   return element.textContent ?? "";
+}
+
+function JournalPrint({ student, journal }: { student: Student; journal: Journal }) {
+  const [snapshot, setSnapshot] = useState({ date: journal.date, content: journal.content });
+
+  useEffect(() => {
+    const preparePrint = () => {
+      const form = document.querySelector<HTMLFormElement>('[data-journal-detail]');
+      const date = form?.querySelector<HTMLInputElement>('[name="date"]')?.value ?? journal.date;
+      const content = form?.querySelector<HTMLElement>('[contenteditable]')?.innerHTML ?? journal.content;
+      flushSync(() => setSnapshot({ date, content }));
+    };
+    window.addEventListener('beforeprint', preparePrint);
+    return () => window.removeEventListener('beforeprint', preparePrint);
+  }, [journal]);
+
+  return createPortal(
+    <article className="journal-print" aria-label="상담일지 인쇄 문서">
+      <h1>상담일지</h1>
+      <dl className="journal-print-details">
+        {[
+          ['좌석', student.seat_number],
+          ['이름', student.name],
+          ['날짜', snapshot.date],
+          ['상담자', journal.counselor_name],
+        ].map(([label, value]) => (
+          <div key={label}><dt>{label}</dt><dd>{value || '—'}</dd></div>
+        ))}
+      </dl>
+      <h2>내용</h2>
+      <div className="journal-print-content" dangerouslySetInnerHTML={{ __html: sanitizeRichText(snapshot.content) }} />
+    </article>,
+    document.body,
+  );
 }
 
 function RichJournalEditor({
@@ -1367,6 +1403,7 @@ export function CounselingManagement({
   if ((writing || selectedJournal) && student)
     return (
       <>
+        {selectedJournal && <JournalPrint key={selectedJournal.id} student={student} journal={selectedJournal} />}
         <StudentDetailsDialog
           student={student}
           open={studentDetailsOpen}
@@ -1386,6 +1423,7 @@ export function CounselingManagement({
                 : "상담일지 작성"
           }
           key={selectedJournal?.id ?? student.id}
+          data-journal-detail={selectedJournal ? "" : undefined}
           className="panel overflow-hidden"
           onChange={(event) => trackChanges(event.currentTarget)}
           onSubmit={(e) => {
@@ -1406,6 +1444,12 @@ export function CounselingManagement({
               )}
             </div>
             <div className="flex items-center gap-2">
+              {selectedJournal && (
+                <Button type="button" variant="outline" disabled={saving} onClick={() => window.print()}>
+                  <Printer size={16} />
+                  인쇄
+                </Button>
+              )}
               <Button
                 type="button"
                 variant="outline"

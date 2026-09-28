@@ -13,7 +13,6 @@ import {
 import {
   Bell,
   ClipboardList,
-  ListTodo,
   Megaphone,
   BookOpen,
   CalendarDays,
@@ -61,7 +60,6 @@ import { StudentManagement } from "@/components/student-management";
 import { StudentStatistics } from "@/components/student-statistics";
 import { FloatingMemo } from "@/components/floating-memo";
 import { CounselingStatistics } from "@/components/counseling-statistics";
-import { PersonalTodos } from "@/components/personal-todos";
 import { WeatherDialog } from "@/components/weather-dialog";
 import { BrandLogo } from "@/components/brand-logo";
 import { SidebarGroup } from "@/components/sidebar-group";
@@ -117,7 +115,6 @@ const pageHints: Record<string, string> = {
   "상담 관리": "학생들의 상담 리스트와 상담일지를 관리할 수 있습니다.",
   시간표: "준비중",
   메모장: "나만의 메모를 넓게 작성할 수 있습니다.",
-  "할 일": "나만의 할 일을 정리하고 완료한 항목을 체크합니다.",
   캘린더: "업무, 일정, 기타, 취미로 나눠 일정을 기록할 수 있습니다.",
   "활동 로그": "선생님들의 활동 기록을 확인할 수 있습니다.",
   "전달 내용": "선생님들끼리 업무 관련 중요 사항을 공유하는 곳입니다.",
@@ -126,9 +123,6 @@ const pageHints: Record<string, string> = {
   "이용 안내": "서비스 이용 방법과 주요 기능을 확인할 수 있습니다.",
 };
 export default function App() {
-  const [todoContainer, setTodoContainer] = useState<HTMLDivElement | null>(
-    null,
-  );
   const {
     setDirty: setJournalDirty,
     setMemoDirty,
@@ -161,13 +155,11 @@ export default function App() {
             ? "학생 관리"
             : window.location.pathname === "/timetable"
               ? "시간표"
-              : window.location.pathname === "/todos"
-                ? "할 일"
-                : window.location.pathname.startsWith("/calendar")
-                  ? "캘린더"
-                  : window.location.pathname === "/memo"
-                    ? "메모장"
-                    : "내 상담실",
+              : window.location.pathname.startsWith("/calendar")
+                ? "캘린더"
+                : window.location.pathname === "/memo"
+                  ? "메모장"
+                  : "내 상담실",
   );
   const studentId =
     path.match(
@@ -190,13 +182,11 @@ export default function App() {
                 ? "학생 관리"
                 : window.location.pathname === "/timetable"
                   ? "시간표"
-                  : window.location.pathname === "/todos"
-                    ? "할 일"
-                    : window.location.pathname.startsWith("/calendar")
-                      ? "캘린더"
-                      : window.location.pathname === "/memo"
-                        ? "메모장"
-                        : "내 상담실",
+                  : window.location.pathname.startsWith("/calendar")
+                    ? "캘린더"
+                    : window.location.pathname === "/memo"
+                      ? "메모장"
+                      : "내 상담실",
       );
     };
     window.addEventListener("popstate", onPop);
@@ -572,15 +562,13 @@ export default function App() {
             ? "/counseling"
             : name === "시간표"
               ? "/timetable"
-              : name === "할 일"
-                ? "/todos"
-                : name === "캘린더"
-                  ? "/calendar"
-                  : name === "메모장"
-                    ? "/memo"
-                    : name === "학생 관리"
-                      ? "/students"
-                      : "/");
+              : name === "캘린더"
+                ? "/calendar"
+                : name === "메모장"
+                  ? "/memo"
+                  : name === "학생 관리"
+                    ? "/students"
+                    : "/");
     if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(name);
@@ -618,7 +606,6 @@ export default function App() {
         {page !== "건의함" &&
           page !== "시간표" &&
           page !== "메모장" &&
-          page !== "할 일" &&
           page !== "캘린더" && (
             <div
               className="building-filter"
@@ -788,17 +775,6 @@ export default function App() {
             <Tooltip>
               <TooltipTrigger asChild>
                 <button
-                  className={`nav-item ${page === "할 일" ? "active" : ""}`}
-                  onClick={() => navigate("할 일")}
-                >
-                  <ListTodo size={18} />할 일
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{pageHints["할 일"]}</TooltipContent>
-            </Tooltip>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
                   className={`nav-item ${page === "캘린더" ? "active" : ""}`}
                   onClick={() => navigate("캘린더")}
                 >
@@ -850,7 +826,6 @@ export default function App() {
                 container={memoContainer}
                 onDirtyChange={setMemoDirty}
               />
-              <PersonalTodos container={todoContainer} hideHeaderIcon />
               <IconTooltip label="캘린더">
                 <button
                   className="memo-launcher"
@@ -1268,8 +1243,6 @@ export default function App() {
             />
           ) : page === "메모장" ? (
             <div ref={setMemoContainer} className="memo-page-host" />
-          ) : page === "할 일" ? (
-            <div ref={setTodoContainer} />
           ) : page === "캘린더" ? (
             <CalendarBoard
               selectedDate={calendarDate}

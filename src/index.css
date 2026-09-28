@@ -1,5 +1,59 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+.journal-print {
+  display: none;
+}
+@media print {
+  @page {
+    size: A4;
+    margin: 18mm;
+  }
+  body:has(> .journal-print) {
+    min-width: 0;
+    background: white;
+    color: black;
+  }
+  body:has(> .journal-print) > :not(.journal-print) {
+    display: none !important;
+  }
+  .journal-print {
+    display: block;
+    font-size: 11pt;
+    line-height: 1.7;
+    overflow-wrap: anywhere;
+  }
+  .journal-print h1 {
+    margin: 0 0 10mm;
+    font-size: 22pt;
+    font-weight: bold;
+    text-align: center;
+  }
+  .journal-print-details {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    border-block: 1px solid #666;
+    margin-bottom: 8mm;
+    break-inside: avoid;
+  }
+  .journal-print-details > div {
+    padding: 3mm 2mm;
+  }
+  .journal-print dt, .journal-print h2 {
+    font-weight: bold;
+  }
+  .journal-print h2 {
+    margin-bottom: 3mm;
+    break-after: avoid;
+  }
+  .journal-print-content {
+    white-space: pre-wrap;
+    orphans: 3;
+    widows: 3;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+}
 @theme inline {
   --font-sans: "Gowun Dodum", sans-serif;
   --color-background: var(--background);
@@ -573,24 +627,6 @@ tbody tr.counseling-current:hover {
   background: #eaf0f5;
   color: #62738a;
   flex-shrink: 0;
-}
-.todo-composer {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-.todo-add-button {
-  flex-shrink: 0;
-  min-width: 68px;
-  min-height: 36px;
-  border-radius: 7px;
-  background: #426083;
-}
-.todo-add-button:hover {
-  background: #304b6a;
-}
-.todo-add-button:disabled {
-  background: #b8c4d2;
 }
 .field {
   display: grid;
@@ -1431,6 +1467,9 @@ select:focus-visible {
   gap: 16px;
   align-items: start;
 }
+.dashboard-columns > * {
+  min-width: 0;
+}
 .dashboard-section {
   height: max(620px, calc(100dvh - 150px));
   display: flex;
@@ -1474,12 +1513,7 @@ select:focus-visible {
 .dashboard-subsection-fill {
   flex: 1 1 auto;
 }
-@media (min-width: 1100px) {
-  .dashboard-columns {
-    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.08fr) minmax(0, 0.92fr);
-  }
-}
-@media (min-width: 760px) and (max-width: 900px) {
+@media (min-width: 760px) {
   .dashboard-columns {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
