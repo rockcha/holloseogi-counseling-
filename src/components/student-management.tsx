@@ -55,6 +55,8 @@ export function StudentManagement({
   const [loadError, setLoadError] = useState("");
   const [reload, setReload] = useState(0);
   const [query, setQuery] = useState("");
+  const [seatFilter, setSeatFilter] = useState("all");
+  const [gradeFilter, setGradeFilter] = useState("all");
   const [open, setOpen] = useState(adding);
   const [selected, setSelected] = useState<Student | null>(null);
   const [seatDraft, setSeatDraft] = useState<string | null>(null);
@@ -62,6 +64,9 @@ export function StudentManagement({
   const lock = useRef(false);
   const [error, setError] = useState("");
   const [confirmDelete, setConfirmDelete] = useState(false);
+  useEffect(() => {
+    if (building === "1" && seatFilter === "502") setSeatFilter("all");
+  }, [building, seatFilter]);
   useEffect(() => {
     let active = true;
     setLoading(true);
@@ -136,6 +141,13 @@ export function StudentManagement({
     .filter(
       (row) =>
         (building === "전체" || String(row.building) === building) &&
+        (seatFilter === "all" ||
+          (seatFilter === "502" && row.seat_number.startsWith("502-")) ||
+          (seatFilter === "W" && row.seat_number.startsWith("W")) ||
+          (seatFilter === "M" && row.seat_number.startsWith("M"))) &&
+        (gradeFilter === "all" ||
+          (gradeFilter === "unknown" && !row.grade) ||
+          row.grade === gradeFilter) &&
         row.name.toLowerCase().includes(query.trim().toLowerCase()),
     )
     .sort(
@@ -186,7 +198,7 @@ export function StudentManagement({
                 학생 추가
               </Button>
             </div>
-            <div className="px-5 pb-5 flex flex-wrap gap-3 justify-between">
+            <div className="px-5 sm:px-6 pb-5 flex flex-wrap items-center gap-2">
               <div className="relative">
                 <Search
                   size={15}
@@ -200,6 +212,29 @@ export function StudentManagement({
                   onChange={(e) => setQuery(e.target.value)}
                 />
               </div>
+              <select
+                aria-label="좌석 필터"
+                value={seatFilter}
+                onChange={(event) => setSeatFilter(event.target.value)}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="all">전체 좌석</option>
+                {building !== "1" && <option value="502">502호</option>}
+                <option value="W">W</option>
+                <option value="M">M</option>
+              </select>
+              <select
+                aria-label="학년 필터"
+                value={gradeFilter}
+                onChange={(event) => setGradeFilter(event.target.value)}
+                className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+              >
+                <option value="all">전체 학년</option>
+                {["예비고1", "고1", "고2", "고3", "n수"].map((grade) => (
+                  <option key={grade} value={grade}>{grade}</option>
+                ))}
+                <option value="unknown">미지정</option>
+              </select>
             </div>
           </div>
           {loading ? (

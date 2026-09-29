@@ -400,13 +400,10 @@ textarea {
   border-radius: 7px;
   border: 1px solid #c5d3e4;
   border-bottom-width: 3px;
-  transition:
-    box-shadow 0.15s,
-    transform 0.15s;
+  transition: transform 0.15s ease;
 }
 .seating-desk:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 5px 12px #17283f24;
+  transform: translate(8px, 6px);
 }
 .seating-desk:focus-visible {
   outline: 3px solid #809cc0;
@@ -1476,7 +1473,7 @@ select:focus-visible {
   flex-direction: column;
   overflow: hidden;
 }
-.dashboard-section > .memo-dashboard-host {
+.dashboard-subsection > .memo-dashboard-host {
   display: flex;
   flex: 1 1 auto;
   min-height: 0;
@@ -1495,23 +1492,14 @@ select:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 16px;
-  flex: 1 1 auto;
   min-height: 0;
 }
 .dashboard-subsection {
+  flex: 1 1 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
   min-height: 0;
-}
-.dashboard-subsection > :not(.dashboard-list) {
-  flex-shrink: 0;
-}
-.dashboard-subsection-compact {
-  flex: 0 0 45%;
-}
-.dashboard-subsection-fill {
-  flex: 1 1 auto;
 }
 @media (min-width: 760px) {
   .dashboard-columns {
