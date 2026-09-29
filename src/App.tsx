@@ -55,6 +55,7 @@ import { AnnouncementBoard } from "@/components/announcements";
 import { useAnnouncements } from "@/components/use-announcements";
 import { matchesTarget } from "@/lib/announcements";
 import { Dashboard } from "@/components/dashboard";
+import { useDashboardBackground } from "@/components/dashboard-background";
 import { CalendarBoard } from "@/components/calendar-board";
 import { StudentManagement } from "@/components/student-management";
 import { StudentStatistics } from "@/components/student-statistics";
@@ -272,6 +273,7 @@ export default function App() {
   const [selected, setSelected] = useState<Counsel | null>(null);
   const [day, setDay] = useState(localDate());
   const member = useContext(MemberProfileContext);
+  const { background, setBackground, backgroundBusy } = useDashboardBackground(member?.id);
   const actor = {
     id: member?.id ?? "local-teacher",
     name: member?.name ?? "홀로서기",
@@ -803,7 +805,7 @@ export default function App() {
           </SidebarGroup>
         </TooltipProvider>
       </aside>
-      <div className="workspace">
+      <div className="workspace" style={{ backgroundColor: background.color }}>
         <header className="topbar">
           <div className="flex items-center  text-xs text-[#62738a]">
             <button
@@ -1225,6 +1227,9 @@ export default function App() {
             />
           ) : page === "내 상담실" ? (
             <Dashboard
+              background={background.id}
+              onBackgroundChange={setBackground}
+              backgroundBusy={backgroundBusy}
               building={building}
               onNavigate={navigateCounseling}
               onMemoContainer={setMemoContainer}

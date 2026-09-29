@@ -1528,7 +1528,7 @@ export function CounselingManagement({
               <span className="font-bold">
                 특이사항{" "}
                 <span className="font-normal text-muted-foreground">
-                  (선택)
+                  (인쇄에는 포함되지 않아요)
                 </span>
               </span>
               <textarea

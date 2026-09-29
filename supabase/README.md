@@ -208,6 +208,14 @@ SQL 마지막 두 조회는 작성자 ID가 없는 기존 데이터를 보여줍
 
 `migrations/202609130024_activity_student_snapshots.sql`을 SQL Editor에서 실행하세요. 상담 예정 추가 트리거를 제거하고, 학생 추가·수정·삭제 및 상담 완료·삭제 시 당시 관·좌석번호·학생명을 보존하는 로그 함수를 적용합니다. 목록의 대상 열에 저장된 정보를 표시하며, 기존 상담 예정 추가 로그는 삭제하지 않고 조회에서 제외합니다.
 
+## 배경색 테마 저장
+
+`migrations/202609290038_user_preferences.sql`을 Supabase SQL Editor에서 실행한 뒤 새 코드를 배포하세요. `profiles` 테이블과 선생님 승인 설정이 먼저 적용되어 있어야 합니다.
+
+배경색은 `user_preferences`에 로그인 계정별로 저장됩니다. 승인된 선생님은 본인 설정만 조회·저장할 수 있습니다. 다른 브라우저에서도 로그인하면 저장한 색을 불러와 모든 페이지의 배경에 적용합니다. 브라우저에 저장했던 이전 색상은 읽거나 자동 업로드하지 않습니다. 저장 실패 시 이전 색으로 복원하고 오류를 표시하며 로컬 저장으로 대체하지 않습니다. Supabase가 없는 예시 모드에서는 새로고침 전까지만 색상을 미리 볼 수 있습니다.
+
+`npx playwright test --config playwright.supabase.config.ts tests/supabase/appearance.spec.ts`는 모의 API로 계정별 조회, 저장, 새 브라우저에서의 불러오기, 실패 시 복원을 검사합니다. 실제 DB 마이그레이션과 RLS 검증은 별도로 필요합니다.
+
 ## 테스트 실행 방법
 
 `npx playwright test`: 키가 비어 있는 예시 모드 검사

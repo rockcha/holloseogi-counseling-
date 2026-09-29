@@ -487,6 +487,7 @@ textarea {
   background: #eaf0f7;
 }
 .workspace {
+  min-height: 100dvh;
   margin-left: 0;
   overflow-x: clip;
 }

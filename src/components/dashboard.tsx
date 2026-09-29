@@ -1,4 +1,5 @@
 import { PageHeading } from "./ui/page-heading";
+import { DashboardBackgroundPicker } from "./dashboard-background";
 import { DashboardSkeleton } from "./ui/skeleton";
 import { DashboardSortControl, type DashboardSort } from "./dashboard-sort";
 import { useContext, useEffect, useRef, useState } from "react";
@@ -242,10 +243,16 @@ export function Dashboard({
   building,
   onNavigate,
   onMemoContainer,
+  background,
+  onBackgroundChange,
+  backgroundBusy,
 }: {
   building: string;
   onNavigate: (path: string) => void;
   onMemoContainer?: (container: HTMLDivElement | null) => void;
+  background: string;
+  onBackgroundChange: (id: string) => void;
+  backgroundBusy: boolean;
 }) {
   const member = useContext(MemberProfileContext);
   const [students, setStudents] = useState<Student[]>([]);
@@ -620,9 +627,10 @@ export function Dashboard({
           }}
         />
       )}
-      <PageHeading emoji="🛋️" className="mb-4">
-        내 상담실
-      </PageHeading>
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <PageHeading emoji="🛋️">내 상담실</PageHeading>
+        <DashboardBackgroundPicker value={background} onChange={onBackgroundChange} disabled={backgroundBusy} />
+      </div>
       <div className="dashboard-columns">
         <section
           aria-label="상담 필요한 학생"
