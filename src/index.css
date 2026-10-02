@@ -1408,7 +1408,7 @@ select:focus-visible {
   min-width: 0;
 }
 .dashboard-section {
-  height: clamp(320px, calc(100dvh - 270px), 720px);
+  height: clamp(360px, calc(100dvh - 230px), 760px);
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -1644,7 +1644,7 @@ select:focus-visible {
 .dashboard-shared-memo > .shared-memo-page { flex: 1; min-height: 0; }
 @media (min-width: 900px) and (max-width: 1199px) {
   .dashboard-columns { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .dashboard-shared-memo { grid-column: 1 / -1; height: 420px; }
+  .dashboard-shared-memo { grid-column: 1 / -1; height: 460px; }
 }
 @media (max-width: 700px) {
   :root { --sidebar-width: 144px; }
