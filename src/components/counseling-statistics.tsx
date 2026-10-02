@@ -49,12 +49,12 @@ export function CounselingStatistics({ building }: { building: string }) {
     return { label: `${start.getFullYear()}.${String(start.getMonth() + 1).padStart(2, "0")}`, count: journals.filter(row => row.date.startsWith(key)).length };
   });
 
-  return <section className="panel p-5 sm:p-6">
+  return <section className="panel page-panel statistics-panel p-5 sm:p-6">
     <PageHeading emoji="📊">상담 통계</PageHeading>
     <p className="subtext mt-2">{building === "전체" ? "전체 관" : `${building}관`} · 상담일 기준 · {todayKey}까지의 기록</p>
     {error ? <div role="alert" className="py-12 text-center"><p>상담 통계를 불러오지 못했습니다.</p><Button className="mt-4" variant="outline" onClick={() => setRetry(value => value + 1)}>다시 불러오기</Button></div>
       : !data ? <p role="status" className="py-12 text-center text-sm text-muted-foreground">상담 통계를 불러오는 중…</p>
-      : <div className="mt-6 space-y-6">
+      : <div className="statistics-content mt-6 space-y-6">
         <div className="grid gap-3 sm:grid-cols-3">
           {[["이번 주 상담", weekCount, `${weekStart} ~ ${todayKey}`], ["이번 달 상담", monthCount, `${monthStart} ~ ${todayKey}`], ["누적 상담", journals.length, "전체 기간"]].map(([label, count, note]) => <div key={label} className="rounded-xl border border-[#e1e7ef] bg-[#f8fafc] p-5"><p className="text-sm text-muted-foreground">{label}</p><p className="mt-2 text-3xl font-bold text-[#17283f]">{count}<span className="ml-1 text-sm font-normal">건</span></p><p className="mt-2 text-xs text-muted-foreground">{note}</p></div>)}
         </div>

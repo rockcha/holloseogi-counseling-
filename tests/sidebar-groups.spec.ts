@@ -2,8 +2,7 @@ import { test, expect } from '@playwright/test';
 
 test('사이드바 그룹을 개별로 접고 펼치며 새로고침 후 상태를 유지한다', async ({ page }) => {
   await page.goto('/calendar');
-  await page.getByRole('button', { name: '메뉴 열기', exact: true }).click();
-  for (const title of ['WORKSPACE', 'COMMUNITY', 'PERSONAL', 'CONTROL CENTER']) {
+  for (const title of ['WORKSPACE', 'COMMUNITY', 'PERSONAL']) {
     const toggle = page.getByRole('button', { name: `${title} 접기`, exact: true });
     await expect(toggle).toHaveAttribute('aria-expanded', 'true');
     await toggle.click();
@@ -11,8 +10,7 @@ test('사이드바 그룹을 개별로 접고 펼치며 새로고침 후 상태�
   }
   await expect(page.getByRole('heading', { name: '캘린더', exact: true, level: 1 })).toBeVisible();
   await page.reload();
-  await page.getByRole('button', { name: '메뉴 열기', exact: true }).click();
-  for (const title of ['WORKSPACE', 'COMMUNITY', 'PERSONAL', 'CONTROL CENTER']) {
+  for (const title of ['WORKSPACE', 'COMMUNITY', 'PERSONAL']) {
     await expect(page.getByRole('button', { name: `${title} 펼치기`, exact: true })).toHaveAttribute('aria-expanded', 'false');
   }
   const personal = page.getByRole('button', { name: 'PERSONAL 펼치기', exact: true });
@@ -39,7 +37,6 @@ test('로컬 저장소를 사용할 수 없어도 그룹을 접고 펼친다', a
     };
   });
   await page.goto('/calendar');
-  await page.getByRole('button', { name: '메뉴 열기', exact: true }).click();
   await page.getByRole('button', { name: 'PERSONAL 접기', exact: true }).click();
   await page.getByRole('button', { name: 'PERSONAL 펼치기', exact: true }).click();
   await expect(page.getByRole('navigation', { name: 'PERSONAL', exact: true }).getByRole('button', { name: '캘린더', exact: true })).toBeVisible();

@@ -242,14 +242,12 @@ function RemoveButton({
 export function Dashboard({
   building,
   onNavigate,
-  onMemoContainer,
   background,
   onBackgroundChange,
   backgroundBusy,
 }: {
   building: string;
   onNavigate: (path: string) => void;
-  onMemoContainer?: (container: HTMLDivElement | null) => void;
   background: string;
   onBackgroundChange: (id: string) => void;
   backgroundBusy: boolean;
@@ -804,17 +802,9 @@ export function Dashboard({
             </div>
           </div>
         </section>
-        <div className="dashboard-section dashboard-stack">
-          <section
-            aria-label="전달 내용"
-            className="panel p-5 dashboard-subsection"
-          >
-            <SharedMemo />
-          </section>
-          <section aria-label="메모장" className="panel p-5 dashboard-subsection">
-            <div ref={onMemoContainer} className="memo-dashboard-host" />
-          </section>
-        </div>
+        <section aria-label="전달 내용" className="panel p-5 dashboard-section dashboard-shared-memo">
+          <SharedMemo />
+        </section>
       </div>
       <Dialog
         open={open}

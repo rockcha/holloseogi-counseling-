@@ -26,7 +26,7 @@ export function StudentStatistics({ building }: { building: string }) {
     (student) => building === "전체" || String(student.building) === building,
   );
   return (
-    <section className="panel p-5 sm:p-6">
+    <section className="panel page-panel statistics-panel p-5 sm:p-6">
       <PageHeading emoji="📊">학생 통계</PageHeading>
       <p className="subtext mt-2">
         {building === "전체" ? "전체 관" : `${building}관`} · 현재 등록된 학생
@@ -51,7 +51,7 @@ export function StudentStatistics({ building }: { building: string }) {
           학생 통계를 불러오는 중…
         </p>
       ) : (
-        <div className="mt-6 space-y-6">
+        <div className="statistics-content mt-6 space-y-6">
           <div className="grid gap-3">
             <div className="rounded-xl border border-[#e1e7ef] bg-[#f8fafc] p-5">
               <h2 className="text-sm text-muted-foreground">전체 학생 수</h2>

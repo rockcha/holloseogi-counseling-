@@ -374,7 +374,7 @@ export function FloatingMemo({
       <IconTooltip label="메모">
         <button
           ref={launcher}
-          className="memo-launcher memo-floating-launcher"
+          className="memo-launcher"
           aria-label="내 메모 열기"
           aria-expanded={open}
           aria-controls="personal-memo"

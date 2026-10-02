@@ -50,7 +50,7 @@ test('상담실의 세 칸은 같은 너비이고 모바일에서는 세로로 �
       return { x, y, width, bottom };
     }));
     for (const box of boxes) expect(Math.abs(box.width - boxes[0].width)).toBeLessThan(1);
-    if (width === 390) {
+    if (width < 900) {
       expect(boxes[1].y).toBeGreaterThanOrEqual(boxes[0].bottom);
       expect(boxes[2].y).toBeGreaterThanOrEqual(boxes[1].bottom);
     } else {

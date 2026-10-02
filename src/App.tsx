@@ -32,9 +32,7 @@ import {
   Users,
   X,
   ArrowUpRight,
-  ArrowLeft,
   CheckCheck,
-  SmilePlus,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -69,30 +67,6 @@ import { PageHeading } from "@/components/ui/page-heading";
 import { supabase } from "@/lib/supabase";
 import { fetchCounsels, persistCounsel } from "@/lib/counsels";
 
-const calendarMemoEmojis = [
-  "😊",
-  "👍",
-  "⭐",
-  "📌",
-  "✅",
-  "💡",
-  "📞",
-  "📚",
-  "🎯",
-  "❤️",
-  "🌱",
-  "✨",
-];
-import {
-  addCalendarTodo,
-  fetchCalendarMemos,
-  fetchCalendarTodos,
-  formatCalendarDayTitle,
-  saveCalendarMemo,
-  updateCalendarTodo,
-  type CalendarDailyMemo,
-  type CalendarTodo,
-} from "@/lib/calendar";
 import { Toaster, toast } from "sonner";
 import {
   relativeTime,
@@ -146,7 +120,9 @@ export default function App() {
   const [reload, setReload] = useState(0);
   const [path, setPath] = useState(window.location.pathname);
   const [page, setPage] = useState(
-    window.location.pathname.startsWith("/community/announcements")
+    window.location.pathname === "/activity-logs"
+      ? "활동 로그"
+      : window.location.pathname.startsWith("/community/announcements")
       ? "전달 내용"
       : window.location.pathname.startsWith("/community/suggestions")
         ? "건의함"
@@ -173,7 +149,9 @@ export default function App() {
       if (!(await acceptPop(event))) return;
       setPath(window.location.pathname);
       setPage(
-        window.location.pathname.startsWith("/community/announcements")
+        window.location.pathname === "/activity-logs"
+          ? "활동 로그"
+          : window.location.pathname.startsWith("/community/announcements")
           ? "전달 내용"
           : window.location.pathname.startsWith("/community/suggestions")
             ? "건의함"
@@ -197,7 +175,6 @@ export default function App() {
     if (!(await navigateHistory(next, replace))) return;
     setPath(next);
     setPage("상담 관리");
-    setMobile(false);
   }
   const [building, setBuilding] = useState(() => {
     try {
@@ -217,25 +194,7 @@ export default function App() {
   }
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("전체");
-  const [mobile, setMobile] = useState(false);
   const [notifications, setNotifications] = useState(false);
-  const [calendarOpen, setCalendarOpen] = useState(false);
-  const [calendarTab, setCalendarTab] = useState<"todos" | "memo">("todos");
-  const [calendarTodos, setCalendarTodos] = useState<CalendarTodo[]>([]);
-  const [calendarMemo, setCalendarMemo] = useState<CalendarDailyMemo | null>(
-    null,
-  );
-  const [calendarMemoContent, setCalendarMemoContent] = useState("");
-  const [calendarMemoSaved, setCalendarMemoSaved] = useState("");
-  const [calendarMemoSaving, setCalendarMemoSaving] = useState(false);
-  const [calendarDraftTodo, setCalendarDraftTodo] = useState("");
-  const [calendarLoading, setCalendarLoading] = useState(false);
-  const [calendarEmojiOpen, setCalendarEmojiOpen] = useState(false);
-  const calendarMemoLock = useRef(false);
-  const calendarMemoTextarea = useRef<HTMLTextAreaElement>(null);
-  const calendarEmojiTrigger = useRef<HTMLButtonElement>(null);
-  const calendarEmojiMenu = useRef<HTMLDivElement>(null);
-  const calendarMemoSelection = useRef({ start: 0, end: 0 });
   const [reading, setReading] = useState(false);
   const [notificationError, setNotificationError] = useState("");
   const [profile, setProfile] = useState(false);
@@ -261,18 +220,11 @@ export default function App() {
       document.removeEventListener("keydown", escape);
     };
   }, [profile, notifications]);
-  useEffect(() => {
-    if (!mobile) return;
-    const closeOnEscape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setMobile(false);
-    };
-    document.addEventListener("keydown", closeOnEscape);
-    return () => document.removeEventListener("keydown", closeOnEscape);
-  }, [mobile]);
   const [dialog, setDialog] = useState(false);
   const [selected, setSelected] = useState<Counsel | null>(null);
   const [day, setDay] = useState(localDate());
   const member = useContext(MemberProfileContext);
+  const isAdmin = member?.is_admin === true;
   const { background, setBackground, backgroundBusy } = useDashboardBackground(member?.id);
   const actor = {
     id: member?.id ?? "local-teacher",
@@ -355,7 +307,6 @@ export default function App() {
     setPath(next);
     setPage(category === "suggestion" ? "건의함" : "전달 내용");
     setNotifications(false);
-    setMobile(false);
   }
   async function readAllNotifications() {
     if (reading) return;
@@ -371,126 +322,6 @@ export default function App() {
   }
   const teacherName = member ? `${member.name} 선생님` : "홀로서기 선생님";
   const today = localDate();
-  const calendarOwnerId = member?.id ?? "demo";
-  async function openHeaderCalendar() {
-    setCalendarOpen(true);
-    setCalendarTab("todos");
-    setCalendarLoading(true);
-    try {
-      const [todos, memos] = await Promise.all([
-        fetchCalendarTodos(calendarOwnerId),
-        fetchCalendarMemos(calendarOwnerId),
-      ]);
-      setCalendarTodos(todos.filter((todo) => todo.todo_date === today));
-      const memo = memos.find((item) => item.memo_date === today) ?? null;
-      setCalendarMemo(memo);
-      setCalendarMemoContent(memo?.content ?? "");
-      setCalendarMemoSaved(memo?.content ?? "");
-    } catch {
-      setCalendarTodos([]);
-      setCalendarMemo(null);
-      setCalendarMemoContent("");
-      setCalendarMemoSaved("");
-    } finally {
-      setCalendarLoading(false);
-    }
-  }
-  useEffect(() => {
-    if (
-      !calendarOpen ||
-      calendarLoading ||
-      calendarMemoContent === calendarMemoSaved
-    )
-      return;
-    const timer = window.setTimeout(async () => {
-      if (calendarMemoLock.current) return;
-      calendarMemoLock.current = true;
-      setCalendarMemoSaving(true);
-      const snapshot = calendarMemoContent;
-      try {
-        const row = await saveCalendarMemo(calendarOwnerId, today, snapshot);
-        setCalendarMemo(row);
-        setCalendarMemoSaved(snapshot);
-      } catch {
-        /* Retried on next change. */
-      } finally {
-        calendarMemoLock.current = false;
-        setCalendarMemoSaving(false);
-      }
-    }, 600);
-    return () => window.clearTimeout(timer);
-  }, [
-    calendarOpen,
-    calendarLoading,
-    calendarMemoContent,
-    calendarMemoSaved,
-    calendarOwnerId,
-    today,
-  ]);
-  async function addHeaderCalendarTodo() {
-    const content = calendarDraftTodo.trim();
-    if (!content) return;
-    try {
-      const row = await addCalendarTodo(calendarOwnerId, {
-        todo_date: today,
-        content,
-      });
-      setCalendarTodos((current) => [...current, row]);
-      setCalendarDraftTodo("");
-    } catch {
-      /* Ignored, form keeps the draft for retry. */
-    }
-  }
-  async function toggleHeaderCalendarTodo(todo: CalendarTodo) {
-    try {
-      const row = await updateCalendarTodo(calendarOwnerId, todo.id, {
-        done: !todo.done,
-      });
-      setCalendarTodos((current) =>
-        current.map((item) => (item.id === row.id ? row : item)),
-      );
-    } catch {
-      /* Ignored. */
-    }
-  }
-  useEffect(() => {
-    if (!calendarEmojiOpen) return;
-    const outside = (event: PointerEvent) => {
-      const target = event.target;
-      if (
-        target instanceof Node &&
-        !calendarEmojiMenu.current?.contains(target) &&
-        !calendarEmojiTrigger.current?.contains(target)
-      ) {
-        setCalendarEmojiOpen(false);
-      }
-    };
-    document.addEventListener("pointerdown", outside);
-    return () => document.removeEventListener("pointerdown", outside);
-  }, [calendarEmojiOpen]);
-  function insertCalendarMemoEmoji(emoji: string) {
-    const start =
-      calendarMemoTextarea.current?.selectionStart ??
-      calendarMemoSelection.current.start;
-    const end =
-      calendarMemoTextarea.current?.selectionEnd ??
-      calendarMemoSelection.current.end;
-    const next =
-      calendarMemoContent.slice(0, start) +
-      emoji +
-      calendarMemoContent.slice(end);
-    if (next.length > 5000) return;
-    setCalendarMemoContent(next);
-    const caret = start + emoji.length;
-    requestAnimationFrame(() => {
-      const node = calendarMemoTextarea.current;
-      if (!node) return;
-      const scrollTop = node.scrollTop;
-      node.focus({ preventScroll: true });
-      node.setSelectionRange(caret, caret);
-      node.scrollTop = scrollTop;
-    });
-  }
   const upcoming = records
     .filter((r) => r.date === day && r.status !== "완료")
     .sort((a, b) => a.time.localeCompare(b.time));
@@ -554,9 +385,12 @@ export default function App() {
     setDay(localDate(date));
   }
   async function navigate(name: string, destination?: string) {
+    if (name === "활동 로그" && !isAdmin) return;
     const next =
       destination ??
-      (name === "전달 내용"
+      (name === "활동 로그"
+        ? "/activity-logs"
+        : name === "전달 내용"
         ? "/community/announcements"
         : name === "건의함"
           ? "/community/suggestions"
@@ -574,10 +408,13 @@ export default function App() {
     if (!(await navigateHistory(next))) return;
     setPath(next);
     setPage(name);
-    setMobile(false);
     setQuery("");
     setFilter("전체");
   }
+  const normalizedPath = path.replace(/\/$/, "");
+  const containedPage =
+    (page === "학생 관리" && ["/students", "/students/new", "/students/statistics"].includes(normalizedPath)) ||
+    (page === "상담 관리" && ["/counseling", "/counseling/teachers", "/counseling/statistics"].includes(normalizedPath));
   return (
     <>
       <AlertDialog
@@ -626,31 +463,7 @@ export default function App() {
             </div>
           )}
       </div>
-      {mobile && (
-        <button
-          aria-label="메뉴 닫기"
-          className="fixed inset-0 z-40 bg-[#17283f]/20 backdrop-blur-[1px]"
-          onClick={() => setMobile(false)}
-        />
-      )}
-      <button
-        type="button"
-        className="drawer-launcher"
-        aria-label="메뉴 열기"
-        aria-expanded={mobile}
-        onClick={() => setMobile(true)}
-      >
-        <ChevronRight size={20} aria-hidden="true" />
-      </button>
-      <button
-        type="button"
-        className="back-launcher"
-        aria-label="뒤로 가기"
-        onClick={() => window.history.back()}
-      >
-        <ArrowLeft size={18} aria-hidden="true" />
-      </button>
-      <aside className={`sidebar ${mobile ? "open" : ""}`}>
+      <aside className="sidebar" aria-label="주 메뉴">
         <TooltipProvider delayDuration={250}>
           <a
             href="#"
@@ -787,56 +600,35 @@ export default function App() {
               <TooltipContent side="right">{pageHints.캘린더}</TooltipContent>
             </Tooltip>
           </SidebarGroup>
-          <SidebarGroup id="control-center" title="CONTROL CENTER">
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <button
-                  className={`nav-item ${page === "활동 로그" ? "active" : ""}`}
-                  onClick={() => navigate("활동 로그")}
-                >
-                  <ClipboardList size={18} />
-                  활동 로그
-                </button>
-              </TooltipTrigger>
-              <TooltipContent side="right">
-                {pageHints["활동 로그"]}
-              </TooltipContent>
-            </Tooltip>
-          </SidebarGroup>
+          {isAdmin && (
+            <SidebarGroup id="control-center" title="CONTROL CENTER">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <button
+                    className={`nav-item ${page === "활동 로그" ? "active" : ""}`}
+                    onClick={() => navigate("활동 로그")}
+                  >
+                    <ClipboardList size={18} />
+                    활동 로그
+                  </button>
+                </TooltipTrigger>
+                <TooltipContent side="right">
+                  {pageHints["활동 로그"]}
+                </TooltipContent>
+              </Tooltip>
+            </SidebarGroup>
+          )}
         </TooltipProvider>
       </aside>
-      <div className="workspace" style={{ backgroundColor: background.color }}>
+      <div
+        className={`workspace ${containedPage ? "workspace-contained" : ""}`}
+        style={{ backgroundColor: background.color }}
+      >
         <header className="topbar">
-          <div className="flex items-center  text-xs text-[#62738a]">
-            <button
-              type="button"
-              className="topbar-brand"
-              aria-label="상담실로 이동"
-              onClick={() => void navigate("내 상담실")}
-            >
-              <BrandLogo className="topbar-logo" />
-              <span className="topbar-brand-copy">
-                <strong>홀로서기</strong>
-                <small>COUNSELING</small>
-              </span>
-            </button>
-          </div>
           <div ref={headerMenus} className="flex items-center gap-5 relative">
             <div className="flex items-center gap-1">
               <WeatherDialog />
-              <FloatingMemo
-                container={memoContainer}
-                onDirtyChange={setMemoDirty}
-              />
-              <IconTooltip label="캘린더">
-                <button
-                  className="memo-launcher"
-                  aria-label="캘린더"
-                  onClick={() => void openHeaderCalendar()}
-                >
-                  <CalendarDays size={19} />
-                </button>
-              </IconTooltip>
+              <FloatingMemo container={memoContainer} onDirtyChange={setMemoDirty} />
               <IconTooltip label="알림">
                 <button
                   className="memo-launcher"
@@ -985,200 +777,6 @@ export default function App() {
               </div>
             )}
           </div>
-          <Dialog open={calendarOpen} onOpenChange={setCalendarOpen}>
-            <DialogContent className="max-w-md border-[#dce3ed] p-0">
-              <DialogHeader className="border-b border-[#e5eaf1] bg-[#f7f9fc] px-6 py-5">
-                <DialogTitle className="text-xl text-[#17283f]">
-                  오늘의 할 일 &amp; 메모
-                </DialogTitle>
-                <DialogDescription>
-                  {formatCalendarDayTitle(today)}
-                </DialogDescription>
-              </DialogHeader>
-              {calendarLoading ? (
-                <p
-                  role="status"
-                  className="px-6 py-6 text-center text-sm text-muted-foreground"
-                >
-                  불러오는 중...
-                </p>
-              ) : (
-                <div className="px-6 py-5">
-                  <div
-                    className="mb-4 flex w-full gap-1 rounded-lg bg-[#edf1f6] p-1"
-                    role="tablist"
-                  >
-                    {(
-                      [
-                        ["todos", "할 일 보기"],
-                        ["memo", "메모하기"],
-                      ] as const
-                    ).map(([value, label]) => (
-                      <button
-                        key={value}
-                        type="button"
-                        role="tab"
-                        aria-selected={calendarTab === value}
-                        onClick={() => setCalendarTab(value)}
-                        className={`flex-1 rounded-md py-1.5 text-sm font-medium transition-colors ${calendarTab === value ? "bg-white text-primary shadow-sm" : "text-muted-foreground hover:text-[#426083]"}`}
-                      >
-                        {label}
-                      </button>
-                    ))}
-                  </div>
-                  {calendarTab === "todos" ? (
-                    <div className="max-h-[50dvh] overflow-y-auto">
-                      <div className="calendar-section-title">
-                        <span>할 일</span>
-                        <span className="text-xs font-normal text-muted-foreground">
-                          {calendarTodos.filter((t) => t.done).length}/
-                          {calendarTodos.length} 완료
-                        </span>
-                      </div>
-                      <form
-                        className="calendar-todo-add"
-                        onSubmit={(event) => {
-                          event.preventDefault();
-                          void addHeaderCalendarTodo();
-                        }}
-                      >
-                        <Input
-                          aria-label="오늘 할 일 추가"
-                          placeholder="오늘 할 일을 입력하세요"
-                          maxLength={300}
-                          value={calendarDraftTodo}
-                          onChange={(event) =>
-                            setCalendarDraftTodo(event.target.value)
-                          }
-                        />
-                        <Button
-                          type="submit"
-                          size="icon"
-                          disabled={!calendarDraftTodo.trim()}
-                        >
-                          <Plus size={16} />
-                        </Button>
-                      </form>
-                      {calendarTodos.length ? (
-                        <ul className="calendar-todo-list">
-                          {calendarTodos.map((todo) => (
-                            <li
-                              key={todo.id}
-                              className={`calendar-todo-item ${todo.done ? "calendar-todo-item-done" : ""}`}
-                            >
-                              <button
-                                type="button"
-                                aria-label={
-                                  todo.done ? "완료 취소" : "완료 처리"
-                                }
-                                aria-pressed={todo.done}
-                                className="calendar-todo-check"
-                                onClick={() =>
-                                  void toggleHeaderCalendarTodo(todo)
-                                }
-                              >
-                                {todo.done && <Check size={13} />}
-                              </button>
-                              <span className="calendar-todo-text">
-                                {todo.content}
-                              </span>
-                            </li>
-                          ))}
-                        </ul>
-                      ) : (
-                        <p className="calendar-todo-empty">
-                          오늘 등록된 할 일이 없습니다.
-                        </p>
-                      )}
-                    </div>
-                  ) : (
-                    <div>
-                      <div className="calendar-section-title">
-                        <span>메모</span>
-                        <div className="flex items-center gap-2">
-                          <span className="text-xs font-normal text-muted-foreground">
-                            {calendarMemoSaving ? "저장 중…" : ""}
-                          </span>
-                          <div className="relative">
-                            <IconTooltip label="이모지 추가">
-                              <button
-                                ref={calendarEmojiTrigger}
-                                type="button"
-                                className="memo-tool-button"
-                                aria-label="이모지 추가"
-                                aria-expanded={calendarEmojiOpen}
-                                onClick={() =>
-                                  setCalendarEmojiOpen((value) => !value)
-                                }
-                              >
-                                <SmilePlus size={16} />
-                              </button>
-                            </IconTooltip>
-                            {calendarEmojiOpen && (
-                              <div
-                                ref={calendarEmojiMenu}
-                                className="memo-emoji-menu"
-                                role="menu"
-                                aria-label="이모지 선택"
-                              >
-                                {calendarMemoEmojis.map((emoji) => (
-                                  <button
-                                    key={emoji}
-                                    type="button"
-                                    role="menuitem"
-                                    aria-label={`${emoji} 삽입`}
-                                    onClick={() => {
-                                      insertCalendarMemoEmoji(emoji);
-                                      setCalendarEmojiOpen(false);
-                                    }}
-                                  >
-                                    {emoji}
-                                  </button>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                      <textarea
-                        ref={calendarMemoTextarea}
-                        aria-label="오늘의 메모"
-                        placeholder="오늘의 메모를 입력하세요"
-                        maxLength={5000}
-                        value={calendarMemoContent}
-                        onSelect={(event) => {
-                          calendarMemoSelection.current = {
-                            start: event.currentTarget.selectionStart,
-                            end: event.currentTarget.selectionEnd,
-                          };
-                        }}
-                        onChange={(event) =>
-                          setCalendarMemoContent(event.target.value)
-                        }
-                        className="calendar-memo-textarea calendar-memo-textarea-tall"
-                      />
-                    </div>
-                  )}
-                </div>
-              )}
-              <DialogFooter className="border-t border-[#e5eaf1] px-6 py-4">
-                <Button
-                  variant="outline"
-                  onClick={() => setCalendarOpen(false)}
-                >
-                  닫기
-                </Button>
-                <Button
-                  onClick={() => {
-                    setCalendarOpen(false);
-                    void navigate("캘린더");
-                  }}
-                >
-                  캘린더 열기
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
         </header>
         <main className="main">
           {page === "상담 일정" && loading && (
@@ -1232,7 +830,6 @@ export default function App() {
               backgroundBusy={backgroundBusy}
               building={building}
               onNavigate={navigateCounseling}
-              onMemoContainer={setMemoContainer}
             />
           ) : page === "상담 관리" && path === "/counseling/statistics" ? (
             <CounselingStatistics building={building} />
@@ -1323,7 +920,13 @@ export default function App() {
               onAddClose={() => void navigate("학생 관리", "/students")}
             />
           ) : page === "활동 로그" ? (
-            <ActivityLogs key={building} building={building} />
+            isAdmin ? (
+              <ActivityLogs key={building} building={building} />
+            ) : (
+              <section className="panel p-7" role="status">
+                관리자만 접근할 수 있는 페이지입니다.
+              </section>
+            )
           ) : page === "환경 설정" ? (
             <section className="panel p-7 max-w-2xl">
               <PageHeading as="h2" emoji="⚙️" className="mb-2">
